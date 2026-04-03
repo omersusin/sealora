@@ -17,7 +17,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,7 +71,6 @@ fun DetailScreen(
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            // Provider Current Weather
             item {
                 CurrentWeatherHeader(
                     weatherData = weatherData,
@@ -81,81 +79,51 @@ fun DetailScreen(
                 )
             }
 
-            // Detailed Stats
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                 DetailedStatsGrid(weatherData = weatherData)
             }
 
-            // Hourly Forecast
             if (weatherData.hourlyForecast.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Schedule,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Outlined.Schedule, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Saatlik Tahmin (${weatherData.hourlyForecast.size} saat)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Text("Saatlik Tahmin (${weatherData.hourlyForecast.size} saat)", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
                 item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(weatherData.hourlyForecast.size) { index ->
                             val hourly = weatherData.hourlyForecast[index]
-                            DetailedHourlyCard(
-                                data = hourly,
-                                onClick = { viewModel.showHourlyDetail(hourly) }
-                            )
+                            DetailedHourlyCard(data = hourly, onClick = { viewModel.showHourlyDetail(hourly) })
                         }
                     }
                 }
             }
 
-            // Daily Forecast
             if (weatherData.dailyForecast.isNotEmpty()) {
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.CalendarMonth,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Outlined.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${weatherData.dailyForecast.size} Günlük Tahmin",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Text("${weatherData.dailyForecast.size} Günlük Tahmin", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                itemsIndexed(weatherData.dailyForecast) { index, daily ->
+                items(weatherData.dailyForecast.size) { index ->
+                    val daily = weatherData.dailyForecast[index]
                     DetailDailyItem(
                         data = daily,
                         isExpanded = uiState.expandedDailyIndex == index,
@@ -167,309 +135,107 @@ fun DetailScreen(
         }
     }
 
-    // Hourly Detail Dialog
     if (uiState.showHourlyDetail && uiState.selectedHourlyData != null) {
-        HourlyDetailDialog(
-            data = uiState.selectedHourlyData!!,
-            onDismiss = { viewModel.dismissHourlyDetail() }
-        )
+        HourlyDetailDialog(data = uiState.selectedHourlyData!!, onDismiss = { viewModel.dismissHourlyDetail() })
     }
 }
 
 @Composable
 private fun DetailedStatsGrid(weatherData: WeatherData, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text(
-            text = "Detaylı Bilgiler",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatCard(
-                icon = "💧",
-                label = "Nem",
-                value = "${weatherData.humidity}%",
-                description = getHumidityDescription(weatherData.humidity),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                icon = "💨",
-                label = "Rüzgar",
-                value = "${weatherData.windSpeed.toInt()} km/h",
-                description = weatherData.windDirection,
-                modifier = Modifier.weight(1f)
-            )
+    Column(modifier = modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Detaylı Bilgiler", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard("💧", "Nem", "${weatherData.humidity}%", getHumidityDescription(weatherData.humidity), Modifier.weight(1f))
+            StatCard("💨", "Rüzgar", "${weatherData.windSpeed.toInt()} km/h", weatherData.windDirection, Modifier.weight(1f))
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatCard(
-                icon = "☀️",
-                label = "UV İndeksi",
-                value = "${weatherData.uvIndex.toInt()}",
-                description = getUvDescription(weatherData.uvIndex),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                icon = "🌡️",
-                label = "Basınç",
-                value = "${weatherData.pressure} hPa",
-                description = getPressureDescription(weatherData.pressure),
-                modifier = Modifier.weight(1f)
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard("☀️", "UV", "${weatherData.uvIndex.toInt()}", getUvDescription(weatherData.uvIndex), Modifier.weight(1f))
+            StatCard("🌡️", "Basınç", "${weatherData.pressure} hPa", getPressureDescription(weatherData.pressure), Modifier.weight(1f))
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            StatCard(
-                icon = "☁️",
-                label = "Bulutluluk",
-                value = "${weatherData.cloudCover}%",
-                description = "",
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                icon = "🌧️",
-                label = "Yağış",
-                value = "${weatherData.precipitation} mm",
-                description = "",
-                modifier = Modifier.weight(1f)
-            )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCard("☁️", "Bulut", "${weatherData.cloudCover}%", "", Modifier.weight(1f))
+            StatCard("🌧️", "Yağış", "${weatherData.precipitation} mm", "", Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun StatCard(
-    icon: String,
-    label: String,
-    value: String,
-    description: String,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = icon, fontSize = 28.sp)
+private fun StatCard(icon: String, label: String, value: String, description: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
+        Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(icon, fontSize = 28.sp)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (description.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
+                Text(description, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
             }
         }
     }
 }
 
 @Composable
-private fun DetailedHourlyCard(
-    data: HourlyData,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.width(100.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = formatTime(data.time),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.SemiBold
-            )
+private fun DetailedHourlyCard(data: HourlyData, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.width(100.dp), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(modifier = Modifier.padding(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(formatTime(data.time), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = data.conditionIcon, fontSize = 28.sp)
+            Text(data.conditionIcon, fontSize = 28.sp)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = formatTemperature(data.temperature),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "${data.precipitationChance}%",
-                style = MaterialTheme.typography.labelSmall,
-                color = SealoraPrimary
-            )
+            Text(formatTemperature(data.temperature), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("${data.precipitationChance}%", style = MaterialTheme.typography.labelSmall, color = SealoraPrimary)
         }
     }
 }
 
 @Composable
-private fun DetailDailyItem(
-    data: DailyData,
-    isExpanded: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isExpanded) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+private fun DetailDailyItem(data: DailyData, isExpanded: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Card(modifier = modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), elevation = CardDefaults.cardElevation(2.dp),
+        colors = CardDefaults.cardColors(containerColor = if (isExpanded) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else MaterialTheme.colorScheme.surface)
     ) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(onClick = onClick)
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = data.conditionIcon,
-                    fontSize = 28.sp,
-                    modifier = Modifier.width(40.dp)
-                )
-
+            Row(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(data.conditionIcon, fontSize = 28.sp, modifier = Modifier.width(40.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = formatDayName(data.date),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = data.condition,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text(formatDayName(data.date), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(data.condition, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = formatTemperature(data.tempMin),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                    )
-                    TemperatureBar(
-                        minTemp = data.tempMin,
-                        maxTemp = data.tempMax,
-                        modifier = Modifier.width(60.dp).height(6.dp)
-                    )
-                    Text(
-                        text = formatTemperature(data.tempMax),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(formatTemperature(data.tempMin), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
+                    TemperatureBar(data.tempMin, data.tempMax, Modifier.width(60.dp).height(6.dp))
+                    Text(formatTemperature(data.tempMax), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                 }
-
-                Icon(
-                    imageVector = if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    contentDescription = if (isExpanded) "Kapat" else "Aç",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
             }
-
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                ) {
+            AnimatedVisibility(visible = isExpanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                     Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        DetailStatChip("🌅 Gün Doğumu", data.sunrise)
-                        DetailStatChip("🌇 Gün Batımı", data.sunset)
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        DetailStatChip("🌅 Doğum", data.sunrise)
+                        DetailStatChip("🌇 Batım", data.sunset)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         DetailStatChip("💨 Rüzgar", "${data.windSpeed.toInt()} km/h")
                         DetailStatChip("🌧️ Yağış", "${data.precipitationChance}%")
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         DetailStatChip("☀️ UV", "${data.uvIndexMax.toInt()}")
                         DetailStatChip("🌡️ Ort.", formatTemperature(data.avgTemp))
                     }
-
                     if (data.hourlyDetail.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "Saatlik Detay",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Text("Saatlik Detay", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
                         LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            items(data.hourlyDetail.size) { index ->
-                                val hourly = data.hourlyDetail[index]
-                                Column(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = formatTime(hourly.time),
-                                        style = MaterialTheme.typography.labelSmall
-                                    )
-                                    Text(text = hourly.conditionIcon, fontSize = 18.sp)
-                                    Text(
-                                        text = formatTemperature(hourly.temperature),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
+                            items(data.hourlyDetail.size) { i ->
+                                val h = data.hourlyDetail[i]
+                                Column(modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)).padding(horizontal = 12.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(formatTime(h.time), style = MaterialTheme.typography.labelSmall)
+                                    Text(h.conditionIcon, fontSize = 18.sp)
+                                    Text(formatTemperature(h.temperature), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -482,103 +248,40 @@ private fun DetailDailyItem(
 
 @Composable
 private fun DetailStatChip(label: String, value: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.Bold
-        )
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
-private fun TemperatureBar(
-    minTemp: Double,
-    maxTemp: Double,
-    modifier: Modifier = Modifier
-) {
-    val normalizedMax = ((maxTemp + 10).coerceIn(-10.0, 40.0) + 10) / 50.0
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(3.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(fraction = normalizedMax.toFloat())
-                .clip(RoundedCornerShape(3.dp))
-                .background(
-                    androidx.compose.ui.graphics.Brush.horizontalGradient(
-                        colors = listOf(SealoraPrimaryLight, ErrorColor.copy(alpha = 0.6f))
-                    )
-                )
-        )
+private fun TemperatureBar(minTemp: Double, maxTemp: Double, modifier: Modifier = Modifier) {
+    val norm = ((maxTemp + 10).coerceIn(-10.0, 40.0) + 10) / 50.0
+    Box(modifier = modifier.clip(RoundedCornerShape(3.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+        Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(norm.toFloat()).clip(RoundedCornerShape(3.dp)).background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(SealoraPrimaryLight, ErrorColor.copy(alpha = 0.6f)))))
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HourlyDetailDialog(
-    data: HourlyData,
-    onDismiss: () -> Unit
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.background,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(text = data.conditionIcon, fontSize = 48.sp)
+private fun HourlyDetailDialog(data: HourlyData, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(data.conditionIcon, fontSize = 48.sp)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = formatTime(data.time),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = data.condition,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Text(formatTime(data.time), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(data.condition, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = formatTemperature(data.temperature),
-                style = MaterialTheme.typography.displayMedium.copy(fontSize = 48.sp),
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Light
-            )
-            Text(
-                text = "Hissedilen ${formatTemperature(data.feelsLike)}",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Text(formatTemperature(data.temperature), style = MaterialTheme.typography.displayMedium.copy(fontSize = 48.sp), fontWeight = FontWeight.Light)
+            Text("Hissedilen ${formatTemperature(data.feelsLike)}")
             Spacer(modifier = Modifier.height(24.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 DetailStatColumn("💧 Nem", "${data.humidity}%")
                 DetailStatColumn("💨 Rüzgar", "${data.windSpeed.toInt()} km/h")
                 DetailStatColumn("🌧️ Yağış", "${data.precipitationChance}%")
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 DetailStatColumn("☀️ UV", "${data.uvIndex.toInt()}")
                 DetailStatColumn("☁️ Bulut", "${data.cloudCover}%")
                 DetailStatColumn("🌡️ Çiy", "${data.dewPoint.toInt()}°")
@@ -591,15 +294,7 @@ private fun HourlyDetailDialog(
 @Composable
 private fun DetailStatColumn(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

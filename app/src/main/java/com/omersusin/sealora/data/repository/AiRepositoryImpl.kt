@@ -11,7 +11,7 @@ import com.omersusin.sealora.domain.repository.AiRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.*
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,6 +25,7 @@ class AiRepositoryImpl @Inject constructor(
 
     companion object {
         private const val TAG = "AiRepo"
+        private val json = Json { ignoreUnknownKeys = true }
     }
 
     override fun getActiveAiConfig(): Flow<AiConfig?> {
@@ -40,8 +41,7 @@ class AiRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveAiConfig(config: AiConfig) {
-        val entity = config.toEntity()
-        aiConfigDao.insertAiConfig(entity)
+        aiConfigDao.insertAiConfig(config.toEntity())
         Log.d(TAG, "AI config saved: ${config.provider.name}")
     }
 
@@ -52,15 +52,15 @@ class AiRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteConfig(provider: AiProvider) {
-        val configs = mutableListOf<AiConfig>()
-        aiConfigDao.getAllAiConfigs().collect { list ->
-            configs.addAll(list.map { it.toDomain() })
-        }
-        val config = configs.find { it.provider == provider }
-        config?.let {
-            aiConfigDao.deleteAiConfig(it.toEntity())
-            Log.d(TAG, "AI config deleted: ${provider.name}")
-        }
+        val entity = AiConfigEntity(
+            provider = provider.name,
+            apiKey = "",
+            model = "",
+            baseUrl = "",
+            isActive = false
+        )
+        aiConfigDao.deleteAiConfig(entity)
+        Log.d(TAG, "AI config deleted: ${provider.name}")
     }
 
     override suspend fun generateReport(
@@ -69,7 +69,7 @@ class AiRepositoryImpl @Inject constructor(
     ): Result<WeatherReport> {
         return try {
             val config = getActiveConfig()
-                ?: return Result.failure(Exception("No active AI configuration found. Please set up an AI provider in settings."))
+                ?: return Result.failure(Exception("No active AI configuration found."))
 
             val aiResponse = aiService.generateWeatherReport(config, city, weatherData)
                 .getOrElse { return Result.failure(it) }
@@ -123,7 +123,7 @@ class AiRepositoryImpl @Inject constructor(
             val session = sessions.find { it.city == city }
             session?.let {
                 try {
-                    Json.decodeFromString<List<AiChatMessage>>(it.messagesJson)
+                    json.decodeFromString<List<AiChatMessage>>(it.messagesJson)
                 } catch (e: Exception) {
                     emptyList()
                 }
@@ -135,7 +135,7 @@ class AiRepositoryImpl @Inject constructor(
         val existing = chatSessionDao.getLatestSessionForCity(city)
         val messages = existing?.let {
             try {
-                Json.decodeFromString<List<AiChatMessage>>(it.messagesJson).toMutableList()
+                json.decodeFromString<List<AiChatMessage>>(it.messagesJson).toMutableList()
             } catch (e: Exception) {
                 mutableListOf()
             }
@@ -146,7 +146,7 @@ class AiRepositoryImpl @Inject constructor(
         val session = ChatSessionEntity(
             id = existing?.id ?: UUID.randomUUID().toString(),
             city = city,
-            messagesJson = Json.encodeToString(messages),
+            messagesJson = json.encodeToString(messages),
             createdAt = existing?.createdAt ?: System.currentTimeMillis()
         )
         chatSessionDao.insertSession(session)
@@ -161,8 +161,9 @@ class AiRepositoryImpl @Inject constructor(
 
     private suspend fun getActiveConfig(): AiConfig? {
         var config: AiConfig? = null
-        aiConfigDao.getActiveAiConfig().collect { entity ->
-            config = entity?.toDomain()
+        aiConfigDao.getActiveAiConfig().collect {
+            config = it?.toDomain()
+            return@collect
         }
         return config
     }
@@ -171,6 +172,7 @@ class AiRepositoryImpl @Inject constructor(
         var history = listOf<AiChatMessage>()
         getChatHistory(city).collect {
             history = it
+            return@collect
         }
         return history
     }
@@ -199,7 +201,7 @@ class AiRepositoryImpl @Inject constructor(
         val commonIcon = weatherData
             .groupingBy { it.conditionIcon }
             .eachCount()
-            .maxByOrNull { it.value }?.key ?: "🌡️"
+            .maxByOrNull { it.value }?.key ?: "\uD83C\uDF21\uFE0F"
 
         return WeatherReport(
             city = city,
@@ -211,9 +213,9 @@ class AiRepositoryImpl @Inject constructor(
             providerCount = weatherData.size,
             providerNames = weatherData.map { it.providerName },
             consistency = consistency,
-            hourlySummary = extractSection(response, "SAATLİK", "GÜNLÜK"),
-            dailySummary = extractSection(response, "GÜNLÜK", "ÖNERİLER"),
-            recommendations = extractListItems(response, "ÖNERİLER"),
+            hourlySummary = extractSection(response, "SAATL\u0130K", "G\u00DCNL\u00DCK"),
+            dailySummary = extractSection(response, "G\u00DCNL\u00DCK", "\u00D6NER\u0130LER"),
+            recommendations = extractListItems(response, "\u00D6NER\u0130LER"),
             alerts = extractAlerts(response, weatherData),
             aiModel = config.model
         )
@@ -225,13 +227,13 @@ class AiRepositoryImpl @Inject constructor(
             val jsonEnd = response.lastIndexOf('}') + 1
             if (jsonStart >= 0 && jsonEnd > jsonStart) {
                 val jsonStr = response.substring(jsonStart, jsonEnd)
-                val json = Json.parseToJsonElement(jsonStr).jsonObject
+                val jsonObj = json.parseToJsonElement(jsonStr).jsonObject
 
-                val selectors = json["selectors"]?.jsonObject
+                val selectors = jsonObj["selectors"]?.jsonObject
 
                 ProviderTemplate(
                     providerId = UUID.randomUUID().toString(),
-                    urlPattern = json["urlTemplate"]?.jsonPrimitive?.content ?: url,
+                    urlPattern = jsonObj["urlTemplate"]?.jsonPrimitive?.content ?: url,
                     selectors = ScrapingSelectors(
                         temperature = selectors?.get("temperature")?.jsonPrimitive?.content ?: "",
                         humidity = selectors?.get("humidity")?.jsonPrimitive?.content ?: "",
@@ -241,7 +243,7 @@ class AiRepositoryImpl @Inject constructor(
                         pressure = selectors?.get("pressure")?.jsonPrimitive?.content ?: ""
                     ),
                     discoveredBy = "ai",
-                    confidence = json["confidence"]?.jsonPrimitive?.double ?: 0.5
+                    confidence = jsonObj["confidence"]?.jsonPrimitive?.double ?: 0.5
                 )
             } else {
                 ProviderTemplate(
@@ -266,10 +268,8 @@ class AiRepositoryImpl @Inject constructor(
 
     private fun calculateConsistency(data: List<WeatherData>): ConsistencyLevel {
         if (data.size < 2) return ConsistencyLevel.HIGH
-
         val temps = data.map { it.temperature }
         val maxDiff = temps.maxOrNull()!! - temps.minOrNull()!!
-
         return when {
             maxDiff <= 2.0 -> ConsistencyLevel.HIGH
             maxDiff <= 5.0 -> ConsistencyLevel.MODERATE
@@ -282,77 +282,30 @@ class AiRepositoryImpl @Inject constructor(
         val start = text.indexOf(startMarker, ignoreCase = true)
         if (start < 0) return ""
         val end = text.indexOf(endMarker, start + startMarker.length, ignoreCase = true)
-        val section = if (end > start) {
-            text.substring(start, end)
-        } else {
-            text.substring(start)
-        }
-        return section.trim()
+        return if (end > start) text.substring(start, end).trim() else text.substring(start).trim()
     }
 
     private fun extractListItems(text: String, sectionName: String): List<String> {
         val section = extractSection(text, sectionName, "")
-        val lines = section.split("\n")
-        return lines.filter { line ->
-            line.trim().startsWith("-") ||
-            line.trim().startsWith("•") ||
-            line.trim().startsWith("*") ||
+        return section.split("\n").filter { line ->
+            line.trim().startsWith("-") || line.trim().startsWith("\u2022") ||
             Regex("""^\d+[.)]""").containsMatchIn(line.trim())
-        }.map { it.trim().replace(Regex("""^[-•*\d.)\s]+"""), "").trim() }
+        }.map { it.trim().replace(Regex("""^[-\u2022*\d.)\s]+"""), "").trim() }
     }
 
-    private fun extractAlerts(
-        text: String,
-        weatherData: List<WeatherData>
-    ): List<WeatherAlert> {
+    private fun extractAlerts(text: String, weatherData: List<WeatherData>): List<WeatherAlert> {
         val alerts = mutableListOf<WeatherAlert>()
-
         val avgTemp = weatherData.map { it.temperature }.average()
         if (avgTemp > 35) {
-            alerts.add(
-                WeatherAlert(
-                    type = AlertType.TEMPERATURE,
-                    title = "🌡️ Yüksek Sıcaklık Uyarısı",
-                    description = "Ortalama sıcaklık ${avgTemp.toInt()}°C. Bol su için ve gölgede kalın.",
-                    severity = 4
-                )
-            )
+            alerts.add(WeatherAlert(AlertType.TEMPERATURE, "Y\u00FCksek S\u0131cakl\u0131k", "Ortalama ${avgTemp.toInt()}\u00B0C", 4))
         }
         if (avgTemp < 0) {
-            alerts.add(
-                WeatherAlert(
-                    type = AlertType.TEMPERATURE,
-                    title = "❄️ Dondurucu Soğuk Uyarısı",
-                    description = "Sıcaklık ${avgTemp.toInt()}°C. Kalın giyinin.",
-                    severity = 4
-                )
-            )
+            alerts.add(WeatherAlert(AlertType.TEMPERATURE, "Dondurucu So\u011Fuk", "S\u0131cakl\u0131k ${avgTemp.toInt()}\u00B0C", 4))
         }
-
         val avgWind = weatherData.map { it.windSpeed }.average()
         if (avgWind > 50) {
-            alerts.add(
-                WeatherAlert(
-                    type = AlertType.WIND,
-                    title = "💨 Kuvvetli Rüzgar Uyarısı",
-                    description = "Rüzgar hızı ${avgWind.toInt()} km/h.",
-                    severity = 3
-                )
-            )
+            alerts.add(WeatherAlert(AlertType.WIND, "Kuvvetli R\u00FCzgar", "${avgWind.toInt()} km/h", 3))
         }
-
-        val avgUv = weatherData.map { it.uvIndex }.average()
-        if (avgUv > 8) {
-            alerts.add(
-                WeatherAlert(
-                    type = AlertType.UV,
-                    title = "☀️ Yüksek UV İndeksi",
-                    description = "UV indeksi ${avgUv.toInt()}. Güneş kremi kullanın.",
-                    severity = 3
-                )
-            )
-        }
-
         return alerts
     }
 
@@ -367,11 +320,7 @@ class AiRepositoryImpl @Inject constructor(
     }
 
     private fun AiConfigEntity.toDomain(): AiConfig {
-        val aiProvider = try {
-            AiProvider.valueOf(provider)
-        } catch (e: Exception) {
-            AiProvider.OPENROUTER
-        }
+        val aiProvider = try { AiProvider.valueOf(provider) } catch (e: Exception) { AiProvider.OPENROUTER }
         return AiConfig(
             provider = aiProvider,
             apiKey = apiKey,

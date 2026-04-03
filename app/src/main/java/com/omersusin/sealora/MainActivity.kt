@@ -9,7 +9,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.compose.rememberNavController
 import com.omersusin.sealora.ui.navigation.SealoraNavGraph
 import com.omersusin.sealora.ui.theme.SealoraTheme
@@ -19,9 +18,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
-
         enableEdgeToEdge()
 
         setContent {
@@ -32,7 +29,6 @@ class MainActivity : ComponentActivity() {
                 ) {
                     val navController = rememberNavController()
 
-                    // Check first launch
                     val isFirstLaunch = remember {
                         val prefs = getSharedPreferences("sealora_prefs", MODE_PRIVATE)
                         val launched = prefs.getBoolean("has_launched", false)
