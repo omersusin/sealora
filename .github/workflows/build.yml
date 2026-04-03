@@ -1,0 +1,155 @@
+name: Sealora Build & Release
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  JAVA_VERSION: '17'
+  JAVA_DISTRIBUTION: 'temurin'
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Build Release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sealora-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sealora-release-apk
+          path: app/build/outputs/apk/release/*.apk
+          retention-days: 14
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: sealora-release-apk
+          path: ./artifacts
+
+      - name: Download Debug APK
+        uses: actions/download-artifact@v4
+        with:
+          name: sealora-debug-apk
+          path: ./artifacts-debug
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Sealora v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## Sealora v${{ steps.version.outputs.VERSION }}
+
+            ### 🌤️ Değişiklikler
+            - Sürüm notlarını buraya ekleyin
+
+            ### 📦 Dosyalar
+            - **Release APK**: Uygulama paketi adı `sealora.wr`
+            - **Debug APK**: Debug sürümü `sealora.wr.debug`
+
+            ### 📱 Kurulum
+            1. APK dosyasını indirin
+            2. Bilinmeyen kaynaklardan yüklemeye izin verin
+            3. APK'yı kurun
+            4. AI API anahtarınızı ayarlardan girin
+          files: |
+            ./artifacts/*.apk
+            ./artifacts-debug/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: ${{ env.JAVA_DISTRIBUTION }}
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run lint
+        run: ./gradlew lint --no-daemon
+
+      - name: Upload lint results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: app/build/reports/lint-results-debug.html
+          retention-days: 7

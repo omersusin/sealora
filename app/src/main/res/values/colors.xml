@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="sealora_primary">#0077B6</color>
+    <color name="sealora_primary_dark">#023E8A</color>
+    <color name="sealora_accent">#00B4D8</color>
+    <color name="sealora_background">#F8FBFF</color>
+    <color name="sealora_surface">#FFFFFF</color>
+</resources>

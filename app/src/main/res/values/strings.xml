@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sealora</string>
+    <string name="onboarding_title">Sealora\'ya Hoş Geldin</string>
+    <string name="onboarding_subtitle">Hava durumunu akıllıca öğren</string>
+    <string name="add_api_key">API Anahtarı Ekle</string>
+    <string name="add_provider">Sağlayıcı Ekle</string>
+    <string name="get_started">Başlayalım</string>
+    <string name="home">Ana Sayfa</string>
+    <string name="settings">Ayarlar</string>
+    <string name="detail">Detay</string>
+    <string name="enter_city">Şehir girin</string>
+    <string name="generating_report">Rapor oluşturuluyor...</string>
+    <string name="weather_report">Hava Durumu Raporu</string>
+    <string name="providers">Sağlayıcılar</string>
+    <string name="ai_settings">Yapay Zeka Ayarları</string>
+</resources>
