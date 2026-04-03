@@ -46,6 +46,18 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Generate release keystore
+        run: |
+          cd app
+          keytool -genkeypair -v \
+            -keystore keystore.jks \
+            -alias sealora \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -storepass sealora123 \
+            -keypass sealora123 \
+            -dname "CN=Sealora, OU=Dev, O=Omersusin, L=Istanbul, ST=Istanbul, C=TR"
+
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
 
@@ -85,6 +97,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download Release APK
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: sealora-release-apk
@@ -107,10 +120,6 @@ jobs:
           name: "Sealora v${{ steps.version.outputs.VERSION }}"
           body: |
             ## Sealora v${{ steps.version.outputs.VERSION }}
-
-            ### 📦 Dosyalar
-            - **Release APK**: `sealora.wr`
-            - **Debug APK**: `sealora.wr.debug`
 
             ### 📱 Kurulum
             1. APK dosyasını indirin

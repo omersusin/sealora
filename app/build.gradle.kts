@@ -14,8 +14,17 @@ android {
         applicationId = "sealora.wr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "sealora123"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "sealora"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "sealora123"
+        }
     }
 
     buildFeatures {
@@ -34,6 +43,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false

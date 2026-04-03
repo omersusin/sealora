@@ -1,51 +1,33 @@
 package com.omersusin.sealora.ui.util
 
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.omersusin.sealora.ui.theme.*
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
 import java.util.Locale
 
-fun Modifier.shimmerEffect(): Modifier = composed {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val translateAnim = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer_translate"
-    )
-
-    background(
+fun Modifier.shimmerEffect(): Modifier = this
+    .clip(RoundedCornerShape(8.dp))
+    .background(
         brush = Brush.linearGradient(
             colors = listOf(
-                Color.LightGray.copy(alpha = 0.6f),
+                Color.LightGray.copy(alpha = 0.4f),
                 Color.LightGray.copy(alpha = 0.2f),
-                Color.LightGray.copy(alpha = 0.6f)
-            ),
-            start = Offset.Zero,
-            end = Offset(x = translateAnim.value, y = translateAnim.value)
+                Color.LightGray.copy(alpha = 0.4f)
+            )
         ),
         shape = RoundedCornerShape(8.dp)
     )
-}
 
-fun Modifier.weatherCardGradient(condition: String): Modifier = composed {
+fun Modifier.weatherCardGradient(condition: String): Modifier {
     val colors = getWeatherGradientColors(condition)
-    background(
+    return this.background(
         brush = Brush.verticalGradient(colors = colors),
         shape = RoundedCornerShape(20.dp)
     )
