@@ -5,7 +5,6 @@ plugins {
     id("com.google.devtools.ksp")
     kotlin("plugin.serialization") version "1.9.22"
 }
-
 android {
     namespace = "com.omersusin.sealora"
     compileSdk = 34
@@ -13,8 +12,8 @@ android {
         applicationId = "sealora.wr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "1.0.5"
+        versionCode = 7
+        versionName = "1.0.6"
     }
     signingConfigs {
         create("release") {
@@ -49,7 +48,6 @@ android {
     }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
-
 dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")

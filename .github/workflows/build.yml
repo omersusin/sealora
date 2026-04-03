@@ -1,4 +1,4 @@
-name: Sealora Build & Release
+name: Sealora Build
 on:
   push:
     branches: [ main, master ]
@@ -11,105 +11,58 @@ env:
   JAVA_DISTRIBUTION: 'temurin'
 jobs:
   build:
-    name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
+      - uses: gradle/actions/setup-gradle@v3
+      - uses: actions/cache@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-      - name: Generate release keystore
-        run: |
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          restore-keys: ${{ runner.os }}-gradle-
+      - run: chmod +x gradlew
+      - run: |
           cd app
-          keytool -genkeypair -v \
-            -keystore keystore.jks \
-            -alias sealora \
-            -keyalg RSA -keysize 2048 \
-            -validity 10000 \
-            -storepass sealora123 \
-            -keypass sealora123 \
-            -dname "CN=Sealora, OU=Dev, O=Omersusin, L=Istanbul, ST=Istanbul, C=TR"
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
-      - name: Build Release APK
-        id: release_build
+          keytool -genkeypair -v -keystore keystore.jks -alias sealora -keyalg RSA -keysize 2048 -validity 10000 -storepass sealora123 -keypass sealora123 -dname "CN=Sealora, OU=Dev, O=Omersusin, L=Istanbul, ST=Istanbul, C=TR"
+      - run: ./gradlew assembleDebug --no-daemon
+      - name: Release APK
+        id: release
         continue-on-error: true
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
-      - name: Upload Debug APK
+        run: ./gradlew assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
         if: always()
-        uses: actions/upload-artifact@v4
         with:
           name: sealora-debug-apk
           path: app/build/outputs/apk/debug/*.apk
-          retention-days: 14
           if-no-files-found: warn
-      - name: Upload Release APK
-        if: steps.release_build.outcome == 'success'
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: steps.release.outcome == 'success'
         with:
           name: sealora-release-apk
           path: app/build/outputs/apk/release/*.apk
-          retention-days: 14
           if-no-files-found: warn
   release:
-    name: Create Release
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: write
+    permissions: { contents: write }
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Download Release APK
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
         continue-on-error: true
-        uses: actions/download-artifact@v4
-        with:
-          name: sealora-release-apk
-          path: ./artifacts
-      - name: Download Debug APK
-        uses: actions/download-artifact@v4
-        with:
-          name: sealora-debug-apk
-          path: ./artifacts-debug
-      - name: Get version from tag
+        with: { name: sealora-release-apk, path: ./artifacts }
+      - uses: actions/download-artifact@v4
+        with: { name: sealora-debug-apk, path: ./artifacts-debug }
+      - run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
           name: "Sealora v${{ steps.version.outputs.VERSION }}"
-          body: |
-            ## Sealora v${{ steps.version.outputs.VERSION }}
-            ### Kurulum
-            1. APK dosyasini indirin
-            2. Bilinmeyen kaynaklardan yuklemeye izin verin
-            3. APK'yi kurun
-            4. AI API anahtarinizi ayarlardan girin
-          files: |
-            ./artifacts/*.apk
-            ./artifacts-debug/*.apk
-          draft: false
-          prerelease: false
+          files: ./artifacts/*.apk,./artifacts-debug/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

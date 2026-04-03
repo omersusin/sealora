@@ -20,65 +20,34 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val hasLocation = mutableStateOf(false)
 
-    private val locationPermissionGranted = mutableStateOf(false)
-
-    private val locationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val fineLocation = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-        val coarseLocation = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-        locationPermissionGranted.value = fineLocation || coarseLocation
+    private val permLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { perms ->
+        hasLocation.value = perms[Manifest.permission.ACCESS_FINE_LOCATION] == true || perms[Manifest.permission.ACCESS_COARSE_LOCATION] == true
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        checkLocationPermission()
-
+        hasLocation.value = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
         setContent {
             SealoraTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    val navController = rememberNavController()
-
-                    val isFirstLaunch = remember {
-                        val prefs = getSharedPreferences("sealora_prefs", MODE_PRIVATE)
-                        val launched = prefs.getBoolean("has_launched", false)
-                        if (!launched) {
-                            prefs.edit().putBoolean("has_launched", true).apply()
-                        }
-                        !launched
+                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    val nav = rememberNavController()
+                    val isFirst = remember {
+                        val p = getSharedPreferences("sealora_prefs", MODE_PRIVATE)
+                        val l = p.getBoolean("has_launched", false)
+                        if (!l) p.edit().putBoolean("has_launched", true).apply()
+                        !l
                     }
-
                     SealoraNavGraph(
-                        navController = navController,
-                        isFirstLaunch = isFirstLaunch,
-                        onRequestLocation = { requestLocationPermission() },
-                        hasLocationPermission = locationPermissionGranted.value
+                        navController = nav,
+                        isFirstLaunch = isFirst,
+                        onRequestLocation = { permLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)) },
+                        hasLocationPermission = hasLocation.value
                     )
                 }
             }
         }
-    }
-
-    private fun checkLocationPermission() {
-        locationPermissionGranted.value =
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
-                PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun requestLocationPermission() {
-        locationPermissionLauncher.launch(
-            arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            )
-        )
     }
 }

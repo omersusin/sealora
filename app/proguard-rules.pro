@@ -17,3 +17,4 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -dontwarn okhttp3.**
 -dontwarn okio.**
+-keep class com.omersusin.sealora.ui.navigation.NavData { *; }

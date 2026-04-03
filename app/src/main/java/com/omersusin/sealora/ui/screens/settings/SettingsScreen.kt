@@ -25,20 +25,19 @@ import com.omersusin.sealora.ui.theme.*
 @Composable
 fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
-    var showProviderDialog by remember { mutableStateOf(false) }
-    var showAiDialog by remember { mutableStateOf(false) }
+    val snack = remember { SnackbarHostState() }
+    var showProv by remember { mutableStateOf(false) }
+    var showAi by remember { mutableStateOf(false) }
 
-    LaunchedEffect(uiState.successMessage) { uiState.successMessage?.let { snackbarHostState.showSnackbar(it); viewModel.clearMessages() } }
-    LaunchedEffect(uiState.error) { uiState.error?.let { snackbarHostState.showSnackbar("Hata: $it"); viewModel.clearMessages() } }
+    LaunchedEffect(uiState.successMessage) { uiState.successMessage?.let { snack.showSnackbar(it); viewModel.clearMessages() } }
+    LaunchedEffect(uiState.error) { uiState.error?.let { snack.showSnackbar("Hata: $it"); viewModel.clearMessages() } }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Ayarlar", fontWeight = FontWeight.Bold) }, navigationIcon = { IconButton(onClick = onNavigateBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Geri") } }) },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snack) }
     ) { padding ->
         LazyColumn(modifier = Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { SettingsSectionHeader("\uD83E\uDD16", "Yapay Zeka", "Rapor ve sohbet icin AI") }
-
+            item { SectionHeader("\uD83E\uDD16", "Yapay Zeka", "Rapor ve sohbet icin AI") }
             if (uiState.activeAiProvider != null) {
                 item {
                     val cfg = uiState.aiConfigs.find { it.isActive }
@@ -52,20 +51,18 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
                                 }
                                 if (cfg?.model?.isNotBlank() == true) Text(cfg.model, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
-                            IconButton(onClick = { showAiDialog = true }) { Icon(Icons.Outlined.Edit, "Duzenle") }
+                            IconButton(onClick = { showAi = true }) { Icon(Icons.Outlined.Edit, "Duzenle") }
                         }
                     }
                 }
             } else {
                 item {
-                    Card(onClick = { showAiDialog = true }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SealoraPrimary.copy(alpha = 0.1f)), shape = RoundedCornerShape(16.dp)) {
+                    Card(onClick = { showAi = true }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = SealoraPrimary.copy(alpha = 0.1f)), shape = RoundedCornerShape(16.dp)) {
                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Add, null, tint = SealoraPrimary); Spacer(Modifier.width(12.dp)); Text("AI Saglayicisi Ekle", color = SealoraPrimary, fontWeight = FontWeight.SemiBold) }
                     }
                 }
             }
-
-            item { Spacer(Modifier.height(4.dp)); SettingsSectionHeader("\u2600\uFE0F", "Hava Durumu Saglayicilari", "${uiState.providers.count { it.isActive }} aktif") }
-
+            item { Spacer(Modifier.height(4.dp)); SectionHeader("\u2600\uFE0F", "Hava Durumu Saglayicilari", "${uiState.providers.count { it.isActive }} aktif") }
             items(uiState.providers) { p ->
                 Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -73,62 +70,98 @@ fun SettingsScreen(onNavigateBack: () -> Unit, viewModel: SettingsViewModel = hi
                         Spacer(Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) { Text(p.name, fontWeight = FontWeight.SemiBold); if (p.isBuiltIn) { Spacer(Modifier.width(4.dp)); Text("\u2B50", fontSize = 12.sp) } }
-                            Text(when (p.type) { ProviderType.BUILTIN -> "Yerlesik"; ProviderType.API -> if (p.apiKey.isNotBlank()) "API \u2713" else "API Key gerekli"; else -> "Kullanici" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(when (p.type) { ProviderType.BUILTIN -> "Yerlesik"; ProviderType.API -> if (p.apiKey.isNotBlank()) "API" else "Key gerekli"; ProviderType.AI_DISCOVERED -> "AI kesfetti"; else -> "Kullanici" }, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         if (!p.isBuiltIn) IconButton(onClick = { viewModel.deleteProvider(p.id) }) { Icon(Icons.Outlined.Delete, "Sil", tint = ErrorColor) }
                     }
                 }
             }
-
-            item { OutlinedButton(onClick = { showProviderDialog = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("Yeni Saglayici") } }
-
-            item {
-                Spacer(Modifier.height(8.dp))
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                    Column(modifier = Modifier.padding(16.dp)) { Text("Sealora v1.0.5", fontWeight = FontWeight.Bold); Text("Coklu saglayici + AI hava durumu", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                }
-            }
+            item { OutlinedButton(onClick = { showProv = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(8.dp)); Text("Yeni Saglayici") } }
+            item { Spacer(Modifier.height(8.dp)); Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Column(modifier = Modifier.padding(16.dp)) { Text("Sealora v1.0.6", fontWeight = FontWeight.Bold); Text("Coklu saglayici + AI hava durumu", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } } }
         }
     }
 
-    if (showProviderDialog) {
+    if (showProv) {
         var url by remember { mutableStateOf("") }
         var name by remember { mutableStateOf("") }
-        AlertDialog(onDismissRequest = { showProviderDialog = false }, title = { Text("Saglayici Ekle") }, text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Isim") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("URL") }, placeholder = { Text("https://site.com/{city}") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Text("{city} kullanabilirsiniz", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }, confirmButton = { Button(onClick = { if (url.isNotBlank()) { viewModel.updateField(SettingsField.NEW_PROVIDER_URL, url); viewModel.updateField(SettingsField.NEW_PROVIDER_NAME, name); viewModel.addProviderFromUrl(); url = ""; name = ""; showProviderDialog = false } }, enabled = url.isNotBlank()) { Text("Ekle") } }, dismissButton = { TextButton(onClick = { showProviderDialog = false }) { Text("Iptal") } })
-    }
+        AlertDialog(
+            onDismissRequest = { showProv = false },
+            title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.Add, null, tint = SealoraPrimary); Spacer(Modifier.width(8.dp)); Text("Saglayici Ekle") } },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Isim (opsiyonel)") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    OutlinedTextField(value = url, onValueChange = { url = it }, label = { Text("URL") }, placeholder = { Text("https://site.com/{city}") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
+                    Text("{city} kullanabilirsiniz", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-    if (showAiDialog) {
-        var key by remember { mutableStateOf("") }
-        var model by remember { mutableStateOf("") }
-        var prov by remember { mutableStateOf(AiProvider.OPENROUTER) }
-        AlertDialog(onDismissRequest = { showAiDialog = false }, title = { Text("AI Yapilandirmasi") }, text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                AiProvider.entries.forEach { p ->
-                    Card(onClick = { prov = p; model = ""; viewModel.selectAiProvider(p) }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (prov == p) SealoraPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(8.dp)) {
-                        Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            RadioButton(selected = prov == p, onClick = { prov = p; model = ""; viewModel.selectAiProvider(p) })
-                            Spacer(Modifier.width(8.dp)); Text(p.displayName, fontWeight = FontWeight.SemiBold)
+                    // AI URL Discovery
+                    OutlinedButton(
+                        onClick = {
+                            viewModel.updateField(SettingsField.NEW_PROVIDER_URL, url)
+                            viewModel.discoverUrlWithAi()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = url.isNotBlank() && !uiState.isDiscoveringUrl
+                    ) {
+                        if (uiState.isDiscoveringUrl) {
+                            Spacer(Modifier.width(4.dp))
+                            Text("Kesfediliyor...")
+                        } else {
+                            Icon(Icons.Outlined.AutoAwesome, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("AI ile Kesfet")
+                        }
+                    }
+
+                    if (uiState.discoveredTemplate.isNotBlank()) {
+                        Card(colors = CardDefaults.cardColors(containerColor = SuccessColor.copy(alpha = 0.1f)), shape = RoundedCornerShape(12.dp)) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text("\u2705 Sablon kesfedildi", fontWeight = FontWeight.Bold, color = SuccessColor)
+                                Text("Guvens: ${(uiState.discoveredConfidence * 100).toInt()}%", style = MaterialTheme.typography.bodySmall)
+                                Text(uiState.discoveredTemplate, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.height(8.dp))
+                                Button(onClick = { viewModel.addProviderFromTemplate(); url = ""; name = ""; showProv = false }, modifier = Modifier.fillMaxWidth()) { Text("Bu Sablonu Kullan") }
+                            }
                         }
                     }
                 }
-                OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("API Key") }, modifier = Modifier.fillMaxWidth(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
-                Text("Model", style = MaterialTheme.typography.labelLarge)
-                prov.defaultModels().take(4).forEach { m ->
-                    Card(onClick = { model = m; viewModel.updateField(SettingsField.AI_MODEL, m) }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (model == m) SealoraPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)), shape = RoundedCornerShape(8.dp)) { Text(m, modifier = Modifier.padding(10.dp), style = MaterialTheme.typography.bodySmall) }
+            },
+            confirmButton = { Button(onClick = { if (url.isNotBlank()) { viewModel.updateField(SettingsField.NEW_PROVIDER_URL, url); viewModel.updateField(SettingsField.NEW_PROVIDER_NAME, name); viewModel.addProviderFromUrl(); url = ""; name = ""; showProv = false } }, enabled = url.isNotBlank()) { Text("Ekle") } },
+            dismissButton = { TextButton(onClick = { showProv = false }) { Text("Iptal") } }
+        )
+    }
+
+    if (showAi) {
+        var key by remember { mutableStateOf("") }
+        var model by remember { mutableStateOf("") }
+        var prov by remember { mutableStateOf(AiProvider.OPENROUTER) }
+        AlertDialog(
+            onDismissRequest = { showAi = false },
+            title = { Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Outlined.AutoAwesome, null, tint = SealoraPrimary); Spacer(Modifier.width(8.dp)); Text("AI Yapilandirmasi") } },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    AiProvider.entries.forEach { p ->
+                        Card(onClick = { prov = p; model = ""; viewModel.selectAiProvider(p) }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (prov == p) SealoraPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(8.dp)) {
+                            Row(modifier = Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = prov == p, onClick = { prov = p; model = ""; viewModel.selectAiProvider(p) })
+                                Spacer(Modifier.width(8.dp)); Text(p.displayName, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text("API Key") }, modifier = Modifier.fillMaxWidth(), singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password))
+                    Text("Model", style = MaterialTheme.typography.labelLarge)
+                    prov.defaultModels().take(4).forEach { m ->
+                        Card(onClick = { model = m; viewModel.updateField(SettingsField.AI_MODEL, m) }, modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = if (model == m) SealoraPrimary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)), shape = RoundedCornerShape(8.dp)) { Text(m, modifier = Modifier.padding(10.dp), style = MaterialTheme.typography.bodySmall) }
+                    }
                 }
-            }
-        }, confirmButton = { Button(onClick = { if (key.isNotBlank()) { viewModel.updateField(SettingsField.AI_API_KEY, key); viewModel.updateField(SettingsField.AI_MODEL, model.ifBlank { prov.defaultModels().firstOrNull() ?: "" }); viewModel.saveAiConfig(); key = ""; model = ""; showAiDialog = false } }, enabled = key.isNotBlank()) { Text("Kaydet") } }, dismissButton = { TextButton(onClick = { showAiDialog = false }) { Text("Iptal") } })
+            },
+            confirmButton = { Button(onClick = { if (key.isNotBlank()) { viewModel.updateField(SettingsField.AI_API_KEY, key); viewModel.updateField(SettingsField.AI_MODEL, model.ifBlank { prov.defaultModels().firstOrNull() ?: "" }); viewModel.saveAiConfig(); key = ""; model = ""; showAi = false } }, enabled = key.isNotBlank()) { Text("Kaydet") } },
+            dismissButton = { TextButton(onClick = { showAi = false }) { Text("Iptal") } }
+        )
     }
 }
 
 @Composable
-private fun SettingsSectionHeader(icon: String, title: String, subtitle: String) {
+private fun SectionHeader(icon: String, title: String, subtitle: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(icon, fontSize = 22.sp); Spacer(Modifier.width(8.dp))
         Column { Text(title, fontWeight = FontWeight.Bold); Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
