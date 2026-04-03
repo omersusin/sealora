@@ -6,6 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -34,6 +37,7 @@ fun OnboardingScreen(
     val uiState by viewModel.uiState.collectAsState()
     var currentStep by remember { mutableIntStateOf(0) }
     val steps = listOf("Hoş Geldin", "Yapay Zeka", "Sağlayıcılar", "Hazır!")
+    var aiConfigSaved by remember { mutableStateOf(false) }
 
     Scaffold { padding ->
         Column(
@@ -59,7 +63,11 @@ fun OnboardingScreen(
 
             when (currentStep) {
                 0 -> WelcomeStep()
-                1 -> AiSetupStep(uiState = uiState, viewModel = viewModel)
+                1 -> AiSetupStep(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onConfigSaved = { aiConfigSaved = true }
+                )
                 2 -> ProviderStep(uiState = uiState, viewModel = viewModel)
                 3 -> ReadyStep()
             }
@@ -72,7 +80,7 @@ fun OnboardingScreen(
                         onClick = { currentStep-- },
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
                     ) {
-                        Icon(Icons.Default.ArrowBack, null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
                         Spacer(Modifier.width(8.dp))
                         Text("Geri")
                     }
@@ -82,13 +90,21 @@ fun OnboardingScreen(
 
                 Button(
                     onClick = {
-                        if (currentStep < steps.size - 1) currentStep++ else onComplete()
+                        if (currentStep == 1 && !aiConfigSaved && uiState.newAiApiKey.isNotBlank()) {
+                            viewModel.saveAiConfig()
+                            aiConfigSaved = true
+                        }
+                        if (currentStep < steps.size - 1) {
+                            currentStep++
+                        } else {
+                            onComplete()
+                        }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = SealoraPrimary)
                 ) {
                     Text(if (currentStep == steps.size - 1) "Başlayalım" else "Devam")
                     Spacer(Modifier.width(8.dp))
-                    Icon(if (currentStep == steps.size - 1) Icons.Default.Check else Icons.Default.ArrowForward, null)
+                    Icon(if (currentStep == steps.size - 1) Icons.Default.Check else Icons.AutoMirrored.Filled.ArrowForward, null)
                 }
             }
         }
@@ -130,8 +146,13 @@ private fun FeatureChip(emoji: String, label: String) {
 @Composable
 private fun AiSetupStep(
     uiState: com.omersusin.sealora.ui.screens.settings.SettingsUiState,
-    viewModel: SettingsViewModel
+    viewModel: SettingsViewModel,
+    onConfigSaved: () -> Unit
 ) {
+    var selectedProvider by remember { mutableStateOf(AiProvider.OPENROUTER) }
+    var apiKey by remember { mutableStateOf("") }
+    var selectedModel by remember { mutableStateOf("") }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             "Yapay zeka rapor oluşturmak için bir AI sağlayıcısı seçin.",
@@ -140,9 +161,13 @@ private fun AiSetupStep(
         Spacer(Modifier.height(24.dp))
 
         AiProvider.entries.forEach { provider ->
-            val isActive = uiState.activeAiProvider == provider
+            val isActive = selectedProvider == provider
             Card(
-                onClick = { viewModel.selectAiProvider(provider) },
+                onClick = {
+                    selectedProvider = provider
+                    selectedModel = ""
+                    viewModel.selectAiProvider(provider)
+                },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                 colors = CardDefaults.cardColors(containerColor = if (isActive) Color.White.copy(alpha = 0.3f) else Color.White.copy(alpha = 0.1f)),
                 shape = RoundedCornerShape(12.dp)
@@ -150,7 +175,11 @@ private fun AiSetupStep(
                 Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(
                         selected = isActive,
-                        onClick = { viewModel.selectAiProvider(provider) },
+                        onClick = {
+                            selectedProvider = provider
+                            selectedModel = ""
+                            viewModel.selectAiProvider(provider)
+                        },
                         colors = RadioButtonDefaults.colors(selectedColor = Color.White, unselectedColor = Color.White.copy(alpha = 0.6f))
                     )
                     Spacer(Modifier.width(12.dp))
@@ -165,8 +194,11 @@ private fun AiSetupStep(
         Spacer(Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = uiState.newAiApiKey,
-            onValueChange = { viewModel.updateField(SettingsField.AI_API_KEY, it) },
+            value = apiKey,
+            onValueChange = {
+                apiKey = it
+                viewModel.updateField(SettingsField.AI_API_KEY, it)
+            },
             label = { Text("API Key", color = Color.White.copy(alpha = 0.7f)) },
             modifier = Modifier.fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.White, unfocusedBorderColor = Color.White.copy(alpha = 0.5f), focusedTextColor = Color.White, unfocusedTextColor = Color.White),
@@ -176,15 +208,18 @@ private fun AiSetupStep(
 
         Spacer(Modifier.height(8.dp))
 
-        val models = uiState.selectedAiProvider.defaultModels()
+        val models = selectedProvider.defaultModels()
         if (models.isNotEmpty()) {
             Text("Model Seçin", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.8f))
             Spacer(Modifier.height(4.dp))
-            models.take(3).forEach { model ->
+            models.take(4).forEach { model ->
                 Card(
-                    onClick = { viewModel.updateField(SettingsField.AI_MODEL, model) },
+                    onClick = {
+                        selectedModel = model
+                        viewModel.updateField(SettingsField.AI_MODEL, model)
+                    },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                    colors = CardDefaults.cardColors(containerColor = if (uiState.newAiModel == model) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f)),
+                    colors = CardDefaults.cardColors(containerColor = if (selectedModel == model) Color.White.copy(alpha = 0.25f) else Color.White.copy(alpha = 0.1f)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(model, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall, color = Color.White)
@@ -195,14 +230,29 @@ private fun AiSetupStep(
         Spacer(Modifier.height(16.dp))
 
         Button(
-            onClick = { viewModel.saveAiConfig() },
+            onClick = {
+                if (apiKey.isNotBlank()) {
+                    viewModel.updateField(SettingsField.AI_API_KEY, apiKey)
+                    viewModel.updateField(SettingsField.AI_MODEL, selectedModel.ifBlank { selectedProvider.defaultModels().firstOrNull() ?: "" })
+                    viewModel.saveAiConfig()
+                    onConfigSaved()
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = SealoraPrimary),
-            enabled = uiState.newAiApiKey.isNotBlank()
+            colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = SealoraPrimary)
         ) {
             Icon(Icons.Default.Save, null)
             Spacer(Modifier.width(8.dp))
             Text("Kaydet ve Devam Et")
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        TextButton(
+            onClick = { onConfigSaved() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Şimdilik geç", color = Color.White.copy(alpha = 0.7f))
         }
     }
 }

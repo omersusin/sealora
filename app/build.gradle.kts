@@ -14,8 +14,8 @@ android {
         applicationId = "sealora.wr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
     }
 
     signingConfigs {
@@ -86,6 +86,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
+    // CRITICAL: Pin animation-core to match Material3 expectations
+    implementation("androidx.compose.animation:animation-core:1.6.0")
+    implementation("androidx.compose.animation:animation:1.6.0")
+
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")
 
@@ -119,7 +123,4 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
-
-    // Accompanist
-    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
 }
