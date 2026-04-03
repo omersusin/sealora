@@ -1,5 +1,4 @@
 name: Sealora Build & Release
-
 on:
   push:
     branches: [ main, master ]
@@ -7,32 +6,26 @@ on:
   pull_request:
     branches: [ main, master ]
   workflow_dispatch:
-
 env:
   JAVA_VERSION: '17'
   JAVA_DISTRIBUTION: 'temurin'
-
 jobs:
   build:
     name: Build APK
     runs-on: ubuntu-latest
     timeout-minutes: 30
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Set up JDK ${{ env.JAVA_VERSION }}
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: ${{ env.JAVA_DISTRIBUTION }}
-
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
-
       - name: Cache Gradle packages
         uses: actions/cache@v4
         with:
@@ -42,10 +35,8 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-
       - name: Generate release keystore
         run: |
           cd app
@@ -57,15 +48,12 @@ jobs:
             -storepass sealora123 \
             -keypass sealora123 \
             -dname "CN=Sealora, OU=Dev, O=Omersusin, L=Istanbul, ST=Istanbul, C=TR"
-
       - name: Build Debug APK
         run: ./gradlew assembleDebug --no-daemon --stacktrace
-
       - name: Build Release APK
         id: release_build
         continue-on-error: true
         run: ./gradlew assembleRelease --no-daemon --stacktrace
-
       - name: Upload Debug APK
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,7 +62,6 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 14
           if-no-files-found: warn
-
       - name: Upload Release APK
         if: steps.release_build.outcome == 'success'
         uses: actions/upload-artifact@v4
@@ -83,7 +70,6 @@ jobs:
           path: app/build/outputs/apk/release/*.apk
           retention-days: 14
           if-no-files-found: warn
-
   release:
     name: Create Release
     needs: build
@@ -91,28 +77,23 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Download Release APK
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: sealora-release-apk
           path: ./artifacts
-
       - name: Download Debug APK
         uses: actions/download-artifact@v4
         with:
           name: sealora-debug-apk
           path: ./artifacts-debug
-
       - name: Get version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -120,12 +101,11 @@ jobs:
           name: "Sealora v${{ steps.version.outputs.VERSION }}"
           body: |
             ## Sealora v${{ steps.version.outputs.VERSION }}
-
-            ### 📱 Kurulum
-            1. APK dosyasını indirin
-            2. Bilinmeyen kaynaklardan yüklemeye izin verin
-            3. APK'yı kurun
-            4. AI API anahtarınızı ayarlardan girin
+            ### Kurulum
+            1. APK dosyasini indirin
+            2. Bilinmeyen kaynaklardan yuklemeye izin verin
+            3. APK'yi kurun
+            4. AI API anahtarinizi ayarlardan girin
           files: |
             ./artifacts/*.apk
             ./artifacts-debug/*.apk

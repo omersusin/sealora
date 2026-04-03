@@ -11,10 +11,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -57,99 +57,124 @@ fun HomeScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(
-                            text = "Sealora",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = SealoraPrimary
-                        )
+                        Text("Sealora", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = SealoraPrimary)
                         if (uiState.city.isNotBlank()) {
-                            Text(
-                                text = uiState.city,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text(uiState.city, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.onEvent(HomeEvent.ToggleChatSheet) }) {
-                        Icon(
-                            imageVector = Icons.Outlined.ChatBubbleOutline,
-                            contentDescription = "AI Sohbet",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
+                        Icon(Icons.Outlined.ChatBubbleOutline, "AI Sohbet")
                     }
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(
-                            imageVector = Icons.Outlined.Settings,
-                            contentDescription = "Ayarlar"
-                        )
+                        Icon(Icons.Outlined.Settings, "Ayarlar")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+            modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
             item {
-                CitySearchBar(
-                    city = uiState.city,
-                    onCityChange = { viewModel.onEvent(HomeEvent.UpdateCity(it)) },
-                    onSearch = {
-                        if (uiState.city.isNotBlank()) {
-                            viewModel.onEvent(HomeEvent.LoadWeather(uiState.city))
+                OutlinedTextField(
+                    value = uiState.city,
+                    onValueChange = { viewModel.onEvent(HomeEvent.UpdateCity(it)) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = { Text("Sehir ara...") },
+                    leadingIcon = {
+                        if (uiState.isLoading || isLoadingLocation) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Outlined.Search, "Ara")
                         }
                     },
-                    isLoading = uiState.isLoading || isLoadingLocation,
-                    onLocationClick = {
-                        if (hasLocationPermission) {
-                            isLoadingLocation = true
-                            scope.launch {
-                                val city = getLastKnownCity(context)
-                                if (city != null) {
-                                    viewModel.onEvent(HomeEvent.UpdateCity(city))
-                                    viewModel.onEvent(HomeEvent.LoadWeather(city))
-                                }
-                                isLoadingLocation = false
+                    trailingIcon = {
+                        if (uiState.city.isNotBlank()) {
+                            IconButton(onClick = { viewModel.onEvent(HomeEvent.UpdateCity("")) }) {
+                                Icon(Icons.Default.Close, "Temizle")
                             }
                         } else {
-                            onRequestLocation()
+                            IconButton(onClick = {
+                                if (hasLocationPermission) {
+                                    isLoadingLocation = true
+                                    scope.launch {
+                                        val city = getLastKnownCity(context)
+                                        if (city != null) {
+                                            viewModel.onEvent(HomeEvent.UpdateCity(city))
+                                            viewModel.onEvent(HomeEvent.LoadWeather(city))
+                                        }
+                                        isLoadingLocation = false
+                                    }
+                                } else {
+                                    onRequestLocation()
+                                }
+                            }) {
+                                Icon(Icons.Outlined.MyLocation, "Konum")
+                            }
                         }
                     },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { if (uiState.city.isNotBlank()) viewModel.onEvent(HomeEvent.LoadWeather(uiState.city)) }),
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SealoraPrimary)
                 )
             }
 
             if (uiState.error != null) {
                 item {
-                    ErrorCard(
-                        message = uiState.error!!,
-                        onRetry = { viewModel.onEvent(HomeEvent.RefreshWeather) },
-                        onDismiss = { viewModel.onEvent(HomeEvent.ClearError) },
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Card(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = ErrorColor.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.ErrorOutline, null, tint = ErrorColor, modifier = Modifier.size(24.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Hata", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = ErrorColor)
+                                Spacer(Modifier.weight(1f))
+                                IconButton(onClick = { viewModel.onEvent(HomeEvent.ClearError) }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Close, "Kapat")
+                                }
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(uiState.error!!, style = MaterialTheme.typography.bodyMedium)
+                            Spacer(Modifier.height(12.dp))
+                            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                                TextButton(onClick = { viewModel.onEvent(HomeEvent.RefreshWeather) }) {
+                                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("Tekrar Dene")
+                                }
+                            }
+                        }
+                    }
                 }
             }
 
             if (uiState.isLoading) {
                 item {
-                    LoadingWeatherCard()
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(Modifier.height(32.dp))
+                        Text("Yukleniyor...", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = SealoraPrimary)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Hava durumu verileri cekiliyor", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
 
             if (uiState.weatherDataList.isNotEmpty() && !uiState.isLoading) {
                 item {
-                    val primaryData = uiState.weatherDataList.first()
                     CurrentWeatherHeader(
-                        weatherData = primaryData,
+                        weatherData = uiState.weatherDataList.first(),
                         report = uiState.report,
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
@@ -158,49 +183,20 @@ fun HomeScreen(
                 if (uiState.isGeneratingReport) {
                     item {
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = SealoraPrimaryLight.copy(alpha = 0.1f)
-                            ),
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = SealoraPrimaryLight.copy(alpha = 0.1f)),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp,
-                                    color = SealoraPrimary
-                                )
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(
-                                    text = "AI rapor oluşturuyor...",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = SealoraPrimary
-                                )
-                            }
-                        }
-                    }
-                }
-
-                uiState.report?.alerts?.let { alerts ->
-                    if (alerts.isNotEmpty()) {
-                        item {
-                            WeatherAlertsCard(
-                                alerts = alerts,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
+                            Text("AI rapor olusturuyor...", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = SealoraPrimary)
                         }
                     }
                 }
 
                 val primaryData = uiState.weatherDataList.first()
+
                 if (primaryData.hourlyForecast.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(Modifier.height(8.dp))
                         HourlyForecastRow(
                             hourlyData = primaryData.hourlyForecast,
                             selectedIndex = uiState.selectedHourlyIndex,
@@ -211,7 +207,7 @@ fun HomeScreen(
 
                 if (primaryData.dailyForecast.isNotEmpty()) {
                     item {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(16.dp))
                         DailyForecastList(
                             dailyData = primaryData.dailyForecast,
                             selectedIndex = uiState.selectedDailyIndex,
@@ -221,34 +217,19 @@ fun HomeScreen(
                 }
 
                 item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Source,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "${uiState.weatherDataList.size} Saglayicidan Veri",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                    Spacer(Modifier.height(16.dp))
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Source, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("${uiState.weatherDataList.size} Saglayicidan Veri", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
                 }
 
                 items(uiState.weatherDataList.size) { index ->
-                    val data = uiState.weatherDataList[index]
                     ProviderWeatherCard(
-                        weatherData = data,
-                        onClick = { onNavigateToDetail(data, uiState.report) },
+                        weatherData = uiState.weatherDataList[index],
+                        onClick = { onNavigateToDetail(uiState.weatherDataList[index], uiState.report) },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
                 }
@@ -256,337 +237,124 @@ fun HomeScreen(
 
             if (uiState.weatherDataList.isEmpty() && !uiState.isLoading && uiState.error == null) {
                 item {
-                    EmptyStateCard(
-                        icon = {
-                            Text("\uD83C\uDF0A", fontSize = 64.sp)
-                        },
-                        title = "Hava Durumu Ara",
-                        subtitle = "Bir sehir adi girerek veya konum butonuna basarak hava durumu bilgisini alin"
-                    )
+                    Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("\uD83C\uDF0A", fontSize = 64.sp)
+                        Spacer(Modifier.height(16.dp))
+                        Text("Hava Durumu Ara", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(8.dp))
+                        Text("Bir sehir adi girerek veya konum butonuna basarak hava durumu bilgisini alin", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         }
     }
 
     if (uiState.showChatSheet) {
-        ChatBottomSheet(
-            messages = uiState.chatMessages,
-            isLoading = uiState.isChatLoading,
-            onSend = { message ->
-                viewModel.onEvent(HomeEvent.SendChatMessage(message))
-            },
-            onDismiss = { viewModel.onEvent(HomeEvent.ToggleChatSheet) }
-        )
+        var chatInput by remember { mutableStateOf("") }
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.onEvent(HomeEvent.ToggleChatSheet) },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = MaterialTheme.colorScheme.background,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
+                Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("\uD83E\uDD16", fontSize = 24.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Sealora AI", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = { viewModel.onEvent(HomeEvent.ToggleChatSheet) }) {
+                        Icon(Icons.Default.Close, "Kapat")
+                    }
+                }
+                Divider()
+                LazyColumn(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (uiState.chatMessages.isEmpty()) {
+                        item {
+                            Column(modifier = Modifier.fillMaxWidth().padding(32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("\uD83D\uDCAC", fontSize = 48.sp)
+                                Spacer(Modifier.height(16.dp))
+                                Text("AI ile sohbet et", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Hava durumu hakkinda sorular sorabilirsiniz.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                            }
+                        }
+                    }
+                    items(uiState.chatMessages.size) { index ->
+                        val msg = uiState.chatMessages[index]
+                        val isUser = msg.role == "user"
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start) {
+                            if (!isUser) {
+                                Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(SealoraPrimary.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                                    Text("\uD83E\uDD16", fontSize = 16.sp)
+                                }
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Card(
+                                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = if (isUser) 16.dp else 4.dp, bottomEnd = if (isUser) 4.dp else 16.dp),
+                                colors = CardDefaults.cardColors(containerColor = if (isUser) SealoraPrimary else MaterialTheme.colorScheme.surfaceVariant),
+                                modifier = Modifier.widthIn(max = 280.dp)
+                            ) {
+                                Text(msg.content, modifier = Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium, color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                    if (uiState.isChatLoading) {
+                        item {
+                            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))) {
+                                Text("Yaziyor...", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+                Divider()
+                Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = chatInput,
+                        onValueChange = { chatInput = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Hava durumu hakkinda sor...") },
+                        shape = RoundedCornerShape(24.dp),
+                        maxLines = 3,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                        keyboardActions = KeyboardActions(onSend = { if (chatInput.isNotBlank()) { viewModel.onEvent(HomeEvent.SendChatMessage(chatInput)); chatInput = "" } })
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { if (chatInput.isNotBlank()) { viewModel.onEvent(HomeEvent.SendChatMessage(chatInput)); chatInput = "" } },
+                        modifier = Modifier.height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SealoraPrimary)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Send, "Gonder", modifier = Modifier.size(20.dp))
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+        }
     }
 }
 
 private suspend fun getLastKnownCity(context: Context): String? {
     return withContext(Dispatchers.IO) {
         try {
-            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
-            val providers = locationManager.getProviders(true)
-            var bestLocation: android.location.Location? = null
-
-            for (provider in providers) {
-                val location = locationManager.getLastKnownLocation(provider) ?: continue
-                if (bestLocation == null || location.accuracy < bestLocation.accuracy) {
-                    bestLocation = location
-                }
+            val lm = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+            val providers = lm.getProviders(true)
+            var best: android.location.Location? = null
+            for (p in providers) {
+                val loc = lm.getLastKnownLocation(p) ?: continue
+                if (best == null || loc.accuracy < best.accuracy) best = loc
             }
-
-            if (bestLocation != null) {
+            if (best != null) {
                 val geocoder = Geocoder(context, Locale("tr"))
                 @Suppress("DEPRECATION")
-                val addresses = geocoder.getFromLocation(bestLocation.latitude, bestLocation.longitude, 1)
-                if (!addresses.isNullOrEmpty()) {
-                    val city = addresses[0].locality ?: addresses[0].subAdminArea
-                    city
-                } else null
+                val addr = geocoder.getFromLocation(best.latitude, best.longitude, 1)
+                if (!addr.isNullOrEmpty()) addr[0].locality ?: addr[0].subAdminArea else null
             } else null
-        } catch (e: Exception) {
-            null
-        }
-    }
-}
-
-@Composable
-private fun CitySearchBar(
-    city: String,
-    onCityChange: (String) -> Unit,
-    onSearch: () -> Unit,
-    isLoading: Boolean,
-    onLocationClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    OutlinedTextField(
-        value = city,
-        onValueChange = onCityChange,
-        modifier = modifier.fillMaxWidth(),
-        placeholder = { Text("Sehir ara... (or: Istanbul, Ankara)") },
-        leadingIcon = {
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
-            } else {
-                Icon(Icons.Outlined.Search, contentDescription = "Ara")
-            }
-        },
-        trailingIcon = {
-            if (city.isNotBlank()) {
-                IconButton(onClick = { onCityChange("") }) {
-                    Icon(Icons.Default.Close, contentDescription = "Temizle")
-                }
-            } else {
-                IconButton(onClick = onLocationClick) {
-                    Icon(Icons.Outlined.MyLocation, contentDescription = "Konum")
-                }
-            }
-        },
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
-        singleLine = true,
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = SealoraPrimary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
-        )
-    )
-}
-
-@Composable
-private fun ErrorCard(
-    message: String,
-    onRetry: () -> Unit,
-    onDismiss: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = ErrorColor.copy(alpha = 0.1f)
-        ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Outlined.ErrorOutline,
-                    contentDescription = null,
-                    tint = ErrorColor,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Hata",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = ErrorColor
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Kapat")
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onRetry) {
-                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Tekrar Dene")
-                }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ChatBottomSheet(
-    messages: List<AiChatMessage>,
-    isLoading: Boolean,
-    onSend: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var localInput by remember { mutableStateOf("") }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.background,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 600.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("\uD83E\uDD16", fontSize = 24.sp)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Sealora AI",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Kapat")
-                }
-            }
-
-            Divider()
-
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (messages.isEmpty()) {
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text("\uD83D\uDCAC", fontSize = 48.sp)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "AI ile sohbet et",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Hava durumu hakkinda sorular sorabilirsiniz.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-
-                items(messages.size) { index ->
-                    val msg = messages[index]
-                    ChatBubble(message = msg)
-                }
-
-                if (isLoading) {
-                    item {
-                        LoadingChatBubble()
-                    }
-                }
-            }
-
-            Divider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedTextField(
-                    value = localInput,
-                    onValueChange = { localInput = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Hava durumu hakkinda sor...") },
-                    shape = RoundedCornerShape(24.dp),
-                    singleLine = false,
-                    maxLines = 3,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                    keyboardActions = KeyboardActions(
-                        onSend = {
-                            if (localInput.isNotBlank()) {
-                                onSend(localInput)
-                                localInput = ""
-                            }
-                        }
-                    )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        if (localInput.isNotBlank()) {
-                            onSend(localInput)
-                            localInput = ""
-                        }
-                    },
-                    modifier = Modifier.height(48.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = SealoraPrimary),
-                    contentPadding = PaddingValues(horizontal = 16.dp)
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gonder", modifier = Modifier.size(20.dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun ChatBubble(message: AiChatMessage) {
-    val isUser = message.role == "user"
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start
-    ) {
-        if (!isUser) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(SealoraPrimary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("\uD83E\uDD16", fontSize = 16.sp)
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-
-        Card(
-            shape = RoundedCornerShape(
-                topStart = 16.dp,
-                topEnd = 16.dp,
-                bottomStart = if (isUser) 16.dp else 4.dp,
-                bottomEnd = if (isUser) 4.dp else 16.dp
-            ),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isUser) {
-                    SealoraPrimary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
-            ),
-            modifier = Modifier.widthIn(max = 280.dp)
-        ) {
-            Text(
-                text = message.content,
-                modifier = Modifier.padding(12.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isUser) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        } catch (e: Exception) { null }
     }
 }

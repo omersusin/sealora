@@ -20,85 +20,36 @@ sealed class Screen(val route: String) {
     object Home : Screen("home")
     object Detail : Screen("detail/{weatherData}/{report}") {
         fun createRoute(weatherDataJson: String, reportJson: String): String {
-            val encodedData = URLEncoder.encode(weatherDataJson, "UTF-8")
-            val encodedReport = URLEncoder.encode(reportJson, "UTF-8")
-            return "detail/$encodedData/$encodedReport"
+            return "detail/${URLEncoder.encode(weatherDataJson, "UTF-8")}/${URLEncoder.encode(reportJson, "UTF-8")}"
         }
     }
     object Settings : Screen("settings")
 }
 
 @Composable
-fun SealoraNavGraph(
-    navController: NavHostController,
-    isFirstLaunch: Boolean,
-    onRequestLocation: () -> Unit = {},
-    hasLocationPermission: Boolean = false
-) {
+fun SealoraNavGraph(navController: NavHostController, isFirstLaunch: Boolean, onRequestLocation: () -> Unit = {}, hasLocationPermission: Boolean = false) {
     var showOnboarding by remember { mutableStateOf(isFirstLaunch) }
-
-    NavHost(
-        navController = navController,
-        startDestination = if (showOnboarding) Screen.Onboarding.route else Screen.Home.route
-    ) {
+    NavHost(navController = navController, startDestination = if (showOnboarding) Screen.Onboarding.route else Screen.Home.route) {
         composable(Screen.Onboarding.route) {
-            OnboardingScreen(
-                onComplete = {
-                    showOnboarding = false
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Onboarding.route) { inclusive = true }
-                    }
-                }
-            )
+            OnboardingScreen(onComplete = { showOnboarding = false; navController.navigate(Screen.Home.route) { popUpTo(Screen.Onboarding.route) { inclusive = true } } })
         }
-
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToDetail = { weatherData, report ->
-                    val dataJson = Json.encodeToString(weatherData)
-                    val reportJson = Json.encodeToString(report)
-                    navController.navigate(Screen.Detail.createRoute(dataJson, reportJson))
+                    navController.navigate(Screen.Detail.createRoute(Json.encodeToString(weatherData), Json.encodeToString(report)))
                 },
-                onNavigateToSettings = {
-                    navController.navigate(Screen.Settings.route)
-                },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
                 onRequestLocation = onRequestLocation,
                 hasLocationPermission = hasLocationPermission
             )
         }
-
-        composable(Screen.Detail.route) { backStackEntry ->
-            val encodedData = backStackEntry.arguments?.getString("weatherData") ?: ""
-            val encodedReport = backStackEntry.arguments?.getString("report") ?: ""
-
-            val dataJson = URLDecoder.decode(encodedData, "UTF-8")
-            val reportJson = URLDecoder.decode(encodedReport, "UTF-8")
-
-            val weatherData = try {
-                Json.decodeFromString<WeatherData>(dataJson)
-            } catch (e: Exception) {
-                null
-            }
-
-            val report = try {
-                Json.decodeFromString<WeatherReport?>(reportJson)
-            } catch (e: Exception) {
-                null
-            }
-
-            if (weatherData != null) {
-                DetailScreen(
-                    weatherData = weatherData,
-                    report = report,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
+        composable(Screen.Detail.route) { entry ->
+            val dataJson = URLDecoder.decode(entry.arguments?.getString("weatherData") ?: "", "UTF-8")
+            val reportJson = URLDecoder.decode(entry.arguments?.getString("report") ?: "", "UTF-8")
+            val weatherData = try { Json.decodeFromString<WeatherData>(dataJson) } catch (e: Exception) { null }
+            val report = try { Json.decodeFromString<WeatherReport?>(reportJson) } catch (e: Exception) { null }
+            if (weatherData != null) { DetailScreen(weatherData = weatherData, report = report, onNavigateBack = { navController.popBackStack() }) }
         }
-
-        composable(Screen.Settings.route) {
-            SettingsScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
+        composable(Screen.Settings.route) { SettingsScreen(onNavigateBack = { navController.popBackStack() }) }
     }
 }
