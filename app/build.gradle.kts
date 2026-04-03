@@ -13,15 +13,15 @@ android {
         applicationId = "sealora.wr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 6
+        versionName = "1.0.5"
     }
     signingConfigs {
         create("release") {
             storeFile = file("keystore.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "sealora123"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "sealora"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "sealora123"
+            storePassword = "sealora123"
+            keyAlias = "sealora"
+            keyPassword = "sealora123"
         }
     }
     buildFeatures { compose = true }
@@ -54,16 +54,13 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.8.2")
-    implementation("androidx.core:core-splashscreen:1.0.1")
-    val composeBom = platform("androidx.compose:compose-bom:2024.04.00")
+    val composeBom = platform("androidx.compose:compose-bom:2024.02.00")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.compose.animation:animation")
-    implementation("androidx.compose.animation:animation-core")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.navigation:navigation-compose:2.7.6")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")

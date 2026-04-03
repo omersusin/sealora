@@ -12,66 +12,37 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val LightColorScheme = lightColorScheme(
-    primary = SealoraPrimary,
-    onPrimary = Color.White,
-    primaryContainer = SealoraPrimaryLight,
-    onPrimaryContainer = SealoraPrimaryDark,
-    secondary = SealoraSecondary,
-    onSecondary = Color.White,
-    secondaryContainer = SealoraSecondaryLight,
-    onSecondaryContainer = SealoraSecondaryDark,
-    tertiary = SealoraAccent,
-    onTertiary = SealoraTextPrimary,
-    background = SealoraBackground,
-    onBackground = SealoraTextPrimary,
-    surface = SealoraSurface,
-    onSurface = SealoraTextPrimary,
-    surfaceVariant = SealoraSurfaceVariant,
-    onSurfaceVariant = SealoraTextSecondary,
-    outline = SealoraTextSecondary.copy(alpha = 0.5f),
-    error = ErrorColor,
-    onError = Color.White
+private val LightScheme = lightColorScheme(
+    primary = SealoraPrimary, onPrimary = Color.White,
+    primaryContainer = SealoraPrimaryLight, onPrimaryContainer = SealoraPrimaryDark,
+    secondary = SealoraSecondary, onSecondary = Color.White,
+    secondaryContainer = SealoraSecondaryLight, onSecondaryContainer = SealoraSecondaryDark,
+    background = SealoraBackground, onBackground = SealoraTextPrimary,
+    surface = SealoraSurface, onSurface = SealoraTextPrimary,
+    surfaceVariant = SealoraSurfaceVariant, onSurfaceVariant = SealoraTextSecondary,
+    error = ErrorColor, onError = Color.White
 )
 
-private val DarkColorScheme = darkColorScheme(
-    primary = SealoraPrimaryDarkTheme,
-    onPrimary = Color.Black,
-    primaryContainer = SealoraPrimaryDark,
-    onPrimaryContainer = SealoraPrimaryLight,
-    secondary = SealoraSecondary,
-    onSecondary = Color.Black,
-    secondaryContainer = SealoraSecondaryDark,
-    onSecondaryContainer = SealoraSecondaryLight,
-    tertiary = SealoraAccent,
-    onTertiary = Color.Black,
-    background = SealoraBackgroundDark,
-    onBackground = SealoraTextDark,
-    surface = SealoraSurfaceDark,
-    onSurface = SealoraTextDark,
-    surfaceVariant = SealoraSurfaceVariantDark,
-    onSurfaceVariant = SealoraTextDark.copy(alpha = 0.8f),
-    outline = SealoraTextDark.copy(alpha = 0.3f),
-    error = ErrorColor,
-    onError = Color.White
+private val DarkScheme = darkColorScheme(
+    primary = SealoraPrimaryDarkTheme, onPrimary = Color.Black,
+    primaryContainer = SealoraPrimaryDark, onPrimaryContainer = SealoraPrimaryLight,
+    secondary = SealoraSecondary, onSecondary = Color.Black,
+    background = SealoraBackgroundDark, onBackground = SealoraTextDark,
+    surface = SealoraSurfaceDark, onSurface = SealoraTextDark,
+    surfaceVariant = SealoraSurfaceVariantDark, onSurfaceVariant = SealoraTextDark.copy(alpha = 0.8f),
+    error = ErrorColor, onError = Color.White
 )
 
 @Composable
-fun SealoraTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
-    content: @Composable () -> Unit
-) {
+fun SealoraTheme(darkTheme: Boolean = isSystemInDarkTheme(), dynamicColor: Boolean = true, content: @Composable () -> Unit) {
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context)
-            else dynamicLightColorScheme(context)
+            val ctx = LocalContext.current
+            if (darkTheme) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        darkTheme -> DarkScheme
+        else -> LightScheme
     }
-
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -80,10 +51,5 @@ fun SealoraTheme(
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = SealoraTypography,
-        content = content
-    )
+    MaterialTheme(colorScheme = colorScheme, typography = SealoraTypography, content = content)
 }

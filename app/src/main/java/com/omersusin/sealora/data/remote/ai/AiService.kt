@@ -1,5 +1,6 @@
 package com.omersusin.sealora.data.remote.ai
 
+import android.util.Log
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -9,36 +10,32 @@ import com.omersusin.sealora.domain.model.*
 
 class AiService(private val client: HttpClient) {
 
-    suspend fun generateWeatherReport(
-        config: AiConfig,
-        city: String,
-        weatherDataList: List<WeatherData>
-    ): Result<String> = runCatching {
+    companion object {
+        private const val TAG = "AiService"
+    }
+
+    suspend fun generateWeatherReport(config: AiConfig, city: String, weatherDataList: List<WeatherData>): Result<String> = runCatching {
         val prompt = buildReportPrompt(city, weatherDataList)
-        callAi(config, prompt)
+        val response = callAi(config, prompt)
+        if (response.isBlank()) throw Exception("Empty response from ${config.provider.displayName}")
+        response
     }
 
-    suspend fun chat(
-        config: AiConfig,
-        message: String,
-        city: String,
-        weatherContext: List<WeatherData>?,
-        chatHistory: List<AiChatMessage>
-    ): Result<String> = runCatching {
+    suspend fun chat(config: AiConfig, message: String, city: String, weatherContext: List<WeatherData>?, chatHistory: List<AiChatMessage>): Result<String> = runCatching {
         val prompt = buildChatPrompt(message, city, weatherContext, chatHistory)
-        callAi(config, prompt)
+        val response = callAi(config, prompt)
+        if (response.isBlank()) throw Exception("Empty response from ${config.provider.displayName}")
+        response
     }
 
-    suspend fun discoverUrlPattern(
-        config: AiConfig,
-        url: String,
-        city: String
-    ): Result<String> = runCatching {
+    suspend fun discoverUrlPattern(config: AiConfig, url: String, city: String): Result<String> = runCatching {
         val prompt = buildDiscoverPrompt(url, city)
         callAi(config, prompt)
     }
 
     private suspend fun callAi(config: AiConfig, prompt: String): String {
+        if (config.apiKey.isBlank()) throw Exception("API key is empty. Please set your API key in settings.")
+        Log.d(TAG, "Calling ${config.provider.name} with model ${config.model}")
         return when (config.provider) {
             AiProvider.OPENROUTER -> callOpenRouter(config, prompt)
             AiProvider.GROQ -> callGroq(config, prompt)
@@ -48,205 +45,110 @@ class AiService(private val client: HttpClient) {
     }
 
     private suspend fun callOpenRouter(config: AiConfig, prompt: String): String {
-        val response: HttpResponse = client.post("${config.baseUrl}/chat/completions") {
+        val url = "${config.baseUrl}/chat/completions"
+        val model = config.model.ifBlank { "meta-llama/llama-3.1-8b-instruct:free" }
+        Log.d(TAG, "OpenRouter URL: $url, Model: $model")
+        val response: HttpResponse = client.post(url) {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${config.apiKey}")
             header("HTTP-Referer", "https://sealora.app")
-            setBody(buildJsonObject {
-                put("model", config.model.ifBlank { "meta-llama/llama-3.1-8b-instruct:free" })
-                putJsonArray("messages") {
-                    addJsonObject {
-                        put("role", "user")
-                        put("content", prompt)
-                    }
-                }
-                put("temperature", 0.7)
-                put("max_tokens", 2048)
-            }.toString())
+            header("X-Title", "Sealora")
+            setBody(buildString {
+                append("{")
+                append("\"model\":\"$model\",")
+                append("\"messages\":[{\"role\":\"user\",\"content\":\"${prompt.replace("\"", "\\\"").replace("\n", "\\n")}\"}],")
+                append("\"temperature\":0.7,")
+                append("\"max_tokens\":1024")
+                append("}")
+            })
         }
-
-        val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-        return json["choices"]?.jsonArray?.firstOrNull()
-            ?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content
-            ?: throw Exception("Empty response from OpenRouter")
+        val body = response.bodyAsText()
+        Log.d(TAG, "OpenRouter response status: ${response.status}, body length: ${body.length}")
+        if (!response.status.isSuccess()) {
+            throw Exception("OpenRouter API error ${response.status}: ${body.take(200)}")
+        }
+        val json = try { Json.parseToJsonElement(body).jsonObject } catch (e: Exception) { throw Exception("Invalid JSON response: ${body.take(200)}") }
+        val choices = json["choices"]?.jsonArray
+        if (choices.isNullOrEmpty()) throw Exception("No choices in response. Full response: ${body.take(300)}")
+        val content = choices.firstOrNull()?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content
+        if (content.isNullOrBlank()) throw Exception("Empty content in response choice. Response: ${body.take(300)}")
+        return content
     }
 
     private suspend fun callGroq(config: AiConfig, prompt: String): String {
+        val model = config.model.ifBlank { "llama-3.1-8b-instant" }
         val response: HttpResponse = client.post("${config.baseUrl}/chat/completions") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${config.apiKey}")
-            setBody(buildJsonObject {
-                put("model", config.model.ifBlank { "llama-3.1-8b-instant" })
-                putJsonArray("messages") {
-                    addJsonObject {
-                        put("role", "user")
-                        put("content", prompt)
-                    }
-                }
-                put("temperature", 0.7)
-                put("max_tokens", 2048)
-            }.toString())
+            setBody(buildString {
+                append("{")
+                append("\"model\":\"$model\",")
+                append("\"messages\":[{\"role\":\"user\",\"content\":\"${prompt.replace("\"", "\\\"").replace("\n", "\\n")}\"}],")
+                append("\"temperature\":0.7,")
+                append("\"max_tokens\":1024")
+                append("}")
+            })
         }
-
-        val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-        return json["choices"]?.jsonArray?.firstOrNull()
-            ?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content
-            ?: throw Exception("Empty response from Groq")
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) throw Exception("Groq error ${response.status}: ${body.take(200)}")
+        val json = Json.parseToJsonElement(body).jsonObject
+        return json["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content ?: throw Exception("Empty Groq response")
     }
 
     private suspend fun callGemini(config: AiConfig, prompt: String): String {
-        val url = "${config.baseUrl}/models/${config.model.ifBlank { "gemini-1.5-flash" }}:generateContent?key=${config.apiKey}"
+        val model = config.model.ifBlank { "gemini-1.5-flash" }
+        val url = "${config.baseUrl}/models/${model}:generateContent?key=${config.apiKey}"
         val response: HttpResponse = client.post(url) {
             contentType(ContentType.Application.Json)
-            setBody(buildJsonObject {
-                putJsonArray("contents") {
-                    addJsonObject {
-                        putJsonArray("parts") {
-                            addJsonObject {
-                                put("text", prompt)
-                            }
-                        }
-                    }
-                }
-                putJsonObject("generationConfig") {
-                    put("temperature", 0.7)
-                    put("maxOutputTokens", 2048)
-                }
-            }.toString())
+            setBody(buildString {
+                append("{")
+                append("\"contents\":[{\"parts\":[{\"text\":\"${prompt.replace("\"", "\\\"").replace("\n", "\\n")}\"}]}],")
+                append("\"generationConfig\":{\"temperature\":0.7,\"maxOutputTokens\":1024}")
+                append("}")
+            })
         }
-
-        val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-        return json["candidates"]?.jsonArray?.firstOrNull()
-            ?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.firstOrNull()
-            ?.jsonObject?.get("text")?.jsonPrimitive?.content
-            ?: throw Exception("Empty response from Gemini")
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) throw Exception("Gemini error ${response.status}: ${body.take(200)}")
+        val json = Json.parseToJsonElement(body).jsonObject
+        return json["candidates"]?.jsonArray?.firstOrNull()?.jsonObject?.get("content")?.jsonObject?.get("parts")?.jsonArray?.firstOrNull()?.jsonObject?.get("text")?.jsonPrimitive?.content ?: throw Exception("Empty Gemini response")
     }
 
     private suspend fun callOpenAI(config: AiConfig, prompt: String): String {
+        val model = config.model.ifBlank { "gpt-4o-mini" }
         val response: HttpResponse = client.post("${config.baseUrl}/chat/completions") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer ${config.apiKey}")
-            setBody(buildJsonObject {
-                put("model", config.model.ifBlank { "gpt-4o-mini" })
-                putJsonArray("messages") {
-                    addJsonObject {
-                        put("role", "user")
-                        put("content", prompt)
-                    }
-                }
-                put("temperature", 0.7)
-                put("max_tokens", 2048)
-            }.toString())
+            setBody(buildString {
+                append("{")
+                append("\"model\":\"$model\",")
+                append("\"messages\":[{\"role\":\"user\",\"content\":\"${prompt.replace("\"", "\\\"").replace("\n", "\\n")}\"}],")
+                append("\"temperature\":0.7,")
+                append("\"max_tokens\":1024")
+                append("}")
+            })
         }
-
-        val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-        return json["choices"]?.jsonArray?.firstOrNull()
-            ?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content
-            ?: throw Exception("Empty response from OpenAI")
+        val body = response.bodyAsText()
+        if (!response.status.isSuccess()) throw Exception("OpenAI error ${response.status}: ${body.take(200)}")
+        val json = Json.parseToJsonElement(body).jsonObject
+        return json["choices"]?.jsonArray?.firstOrNull()?.jsonObject?.get("message")?.jsonObject?.get("content")?.jsonPrimitive?.content ?: throw Exception("Empty OpenAI response")
     }
 
     private fun buildReportPrompt(city: String, weatherDataList: List<WeatherData>): String {
-        val dataSummary = weatherDataList.joinToString("\n\n") { data ->
-            """
-            Sağlayıcı: ${data.providerName}
-            Sıcaklık: ${data.temperature}°C (Hissedilen: ${data.feelsLike}°C)
-            Nem: ${data.humidity}%
-            Rüzgar: ${data.windSpeed} km/h ${data.windDirection}
-            Basınç: ${data.pressure} hPa
-            UV İndeksi: ${data.uvIndex}
-            Bulutluluk: ${data.cloudCover}%
-            Durum: ${data.condition} ${data.conditionIcon}
-            Yağış: ${data.precipitation} mm
-            """.trimIndent()
+        val dataSummary = weatherDataList.joinToString("\n---\n") { data ->
+            "Provider: ${data.providerName}\nTemp: ${data.temperature}C, Feels: ${data.feelsLike}C\nHumidity: ${data.humidity}%, Wind: ${data.windSpeed} km/h ${data.windDirection}\nPressure: ${data.pressure} hPa, UV: ${data.uvIndex}\nCloud: ${data.cloudCover}%, Condition: ${data.condition}\nPrecipitation: ${data.precipitation} mm"
         }
-
-        return """
-        Sen Sealora adlı hava durumu uygulamasının yapay zeka asistanısın.
-        
-        $city şehri için ${weatherDataList.size} farklı hava durumu sağlayıcısından veri toplandı.
-        
-        SAĞLAYICI VERİLERİ:
-        $dataSummary
-        
-        Lütfen şu formatta kapsamlı bir rapor oluştur:
-        
-        1. GENEL ÖZET: 2-3 cümlelik hava durumu özeti
-        2. SAĞLAYICI TUTARLILIĞI: Sağlayıcılar arasındaki farkları analiz et
-        3. SAATLİK ÖZET: Önemli saatlik değişiklikler
-        4. GÜNLÜK ÖZET: 3-5 günlük genel görünüm
-        5. ÖNERİLER: Kullanıcıya özel öneriler (giyim, aktivite vb.)
-        6. UYARILAR: Dikkat edilmesi gereken durumlar
-        
-        Türkçe, samimi ve bilgilendirici bir dil kullan. Emoji kullanabilirsin.
-        """.trimIndent()
+        return "You are a weather AI assistant for the Sealora app. Generate a weather report for $city based on data from ${weatherDataList.size} providers.\n\nDATA:\n$dataSummary\n\nProvide a concise report in Turkish with: summary, hourly highlights, daily outlook, recommendations, and alerts if needed. Use emojis."
     }
 
-    private fun buildChatPrompt(
-        message: String,
-        city: String,
-        weatherContext: List<WeatherData>?,
-        chatHistory: List<AiChatMessage>
-    ): String {
-        val contextPart = if (weatherContext != null && weatherContext.isNotEmpty()) {
-            val dataSummary = weatherContext.joinToString("\n") { data ->
-                "${data.providerName}: ${data.temperature}°C, ${data.condition} ${data.conditionIcon}, Nem: ${data.humidity}%, Rüzgar: ${data.windSpeed} km/h"
-            }
-            """
-            MEVCUT HAVA DURUMU VERİLERİ ($city):
-            $dataSummary
-            """
-        } else {
-            "Henüz hava durumu verisi yüklenmedi."
-        }
-
-        val historyPart = if (chatHistory.isNotEmpty()) {
-            val history = chatHistory.takeLast(6).joinToString("\n") { msg ->
-                "${if (msg.role == "user") "Kullanıcı" else "Asistan"}: ${msg.content}"
-            }
-            "SOHBET GEÇMİŞİ:\n$history"
-        } else {
-            ""
-        }
-
-        return """
-        Sen Sealora adlı hava durumu uygulamasının yapay zeka asistanısın.
-        Hava durumu hakkında soruları yanıtlıyorsun.
-        Türkçe, samimi ve bilgilendirici bir dil kullan.
-        
-        $contextPart
-        
-        $historyPart
-        
-        KULLANICI SORUSU: $message
-        
-        Yanıtını hava durumu verilerine dayandır. Eğer veri yoksa, genel hava durumu bilgisi ver.
-        """.trimIndent()
+    private fun buildChatPrompt(message: String, city: String, weatherContext: List<WeatherData>?, chatHistory: List<AiChatMessage>): String {
+        val context = if (weatherContext != null && weatherContext.isNotEmpty()) {
+            "Current weather for $city:\n" + weatherContext.joinToString("\n") { "${it.providerName}: ${it.temperature}C, ${it.condition}, Humidity: ${it.humidity}%, Wind: ${it.windSpeed} km/h" }
+        } else { "No weather data loaded yet." }
+        val history = if (chatHistory.isNotEmpty()) "Chat history:\n" + chatHistory.takeLast(6).joinToString("\n") { "${if (it.role == "user") "User" else "Assistant"}: ${it.content}" } else ""
+        return "You are Sealora weather AI assistant. Answer in Turkish.\n\n$context\n\n$history\n\nUser question: $message"
     }
 
     private fun buildDiscoverPrompt(url: String, city: String): String {
-        return """
-        Bir hava durumu web sitesinin URL yapısını analiz et.
-        
-        ÖRNEK URL: $url
-        TEST ŞEHRİ: $city
-        
-        Bu URL'nin yapısını analiz et ve şu bilgileri JSON formatında ver:
-        
-        {
-            "urlTemplate": "Şehir adını {city} placeholder ile şablonlaştırılmış URL",
-            "language": "Sayfanın dili (en, tr, vb.)",
-            "selectors": {
-                "temperature": "Sıcaklık için CSS selector veya regex",
-                "humidity": "Nem için selector",
-                "windSpeed": "Rüzgar hızı için selector",
-                "condition": "Hava durumu durumu için selector",
-                "feelsLike": "Hissedilen sıcaklık için selector",
-                "pressure": "Basınç için selector"
-            },
-            "confidence": 0.0-1.0 arası güven skoru
-        }
-        
-        Sadece JSON döndür, başka açıklama yapma.
-        """.trimIndent()
+        return "Analyze this weather URL and return a JSON template: $url\nTest city: $city\nReturn JSON with urlTemplate (use {city} placeholder), language, and selectors object with CSS selectors for temperature, humidity, windSpeed, condition, feelsLike, pressure. Return only JSON."
     }
 }
