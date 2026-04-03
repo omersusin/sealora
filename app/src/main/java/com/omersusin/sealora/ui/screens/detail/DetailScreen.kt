@@ -1,11 +1,11 @@
 package com.omersusin.sealora.ui.screens.detail
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -17,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -202,12 +204,12 @@ private fun DetailDailyItem(data: DailyData, isExpanded: Boolean, onClick: () ->
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(formatTemperature(data.tempMin), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary.copy(alpha = 0.7f))
-                    TemperatureBar(data.tempMin, data.tempMax, Modifier.width(60.dp).height(6.dp))
+                    DetailTemperatureBar(data.tempMin, data.tempMax, Modifier.width(60.dp).height(6.dp))
                     Text(formatTemperature(data.tempMax), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                 }
                 Icon(if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
             }
-            AnimatedVisibility(visible = isExpanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+            if (isExpanded) {
                 Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
                     Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(12.dp))
@@ -255,10 +257,10 @@ private fun DetailStatChip(label: String, value: String) {
 }
 
 @Composable
-private fun TemperatureBar(minTemp: Double, maxTemp: Double, modifier: Modifier = Modifier) {
+private fun DetailTemperatureBar(minTemp: Double, maxTemp: Double, modifier: Modifier = Modifier) {
     val norm = ((maxTemp + 10).coerceIn(-10.0, 40.0) + 10) / 50.0
     Box(modifier = modifier.clip(RoundedCornerShape(3.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-        Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(norm.toFloat()).clip(RoundedCornerShape(3.dp)).background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(SealoraPrimaryLight, ErrorColor.copy(alpha = 0.6f)))))
+        Box(modifier = Modifier.fillMaxHeight().fillMaxWidth(norm.toFloat()).clip(RoundedCornerShape(3.dp)).background(Brush.horizontalGradient(listOf(SealoraPrimaryLight, ErrorColor.copy(alpha = 0.6f)))))
     }
 }
 
@@ -272,7 +274,7 @@ private fun HourlyDetailDialog(data: HourlyData, onDismiss: () -> Unit) {
             Text(formatTime(data.time), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Text(data.condition, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(modifier = Modifier.height(16.dp))
-            Text(formatTemperature(data.temperature), style = MaterialTheme.typography.displayMedium.copy(fontSize = 48.sp), fontWeight = FontWeight.Light)
+            Text(formatTemperature(data.temperature), style = MaterialTheme.typography.headlineLarge.copy(fontSize = 48.sp), fontWeight = FontWeight.Light)
             Text("Hissedilen ${formatTemperature(data.feelsLike)}")
             Spacer(modifier = Modifier.height(24.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {

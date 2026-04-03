@@ -1,17 +1,10 @@
 package com.omersusin.sealora.ui.components
 
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.omersusin.sealora.ui.util.shimmerEffect
 
@@ -22,7 +15,6 @@ fun LoadingWeatherCard(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        // Header shimmer
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -33,10 +25,7 @@ fun LoadingWeatherCard(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Hourly shimmer
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             repeat(5) {
                 Box(
                     modifier = Modifier
@@ -49,7 +38,6 @@ fun LoadingWeatherCard(modifier: Modifier = Modifier) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Daily shimmer
         repeat(5) {
             Box(
                 modifier = Modifier

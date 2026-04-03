@@ -1,12 +1,10 @@
 package com.omersusin.sealora.ui.components
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -55,7 +53,6 @@ fun CurrentWeatherHeader(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // City Name
                 Text(
                     text = weatherData.city,
                     style = MaterialTheme.typography.headlineMedium,
@@ -65,7 +62,6 @@ fun CurrentWeatherHeader(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Condition Icon & Text
                 Text(
                     text = weatherData.conditionIcon,
                     fontSize = 72.sp,
@@ -80,7 +76,6 @@ fun CurrentWeatherHeader(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Temperature
                 Text(
                     text = formatTemperature(weatherData.temperature),
                     style = MaterialTheme.typography.displayLarge.copy(
@@ -98,7 +93,6 @@ fun CurrentWeatherHeader(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Quick Stats Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -120,7 +114,6 @@ fun CurrentWeatherHeader(
                     )
                 }
 
-                // Report Summary
                 if (report != null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Divider(
@@ -145,9 +138,7 @@ private fun WeatherStatItem(
     value: String,
     label: String
 ) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Icon(
             imageVector = icon,
             contentDescription = label,
@@ -203,7 +194,8 @@ fun HourlyForecastRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            itemsIndexed(hourlyData.take(24)) { index, data ->
+            items(hourlyData.take(24).indices.toList()) { index ->
+                val data = hourlyData[index]
                 HourlyItem(
                     data = data,
                     isSelected = selectedIndex == index,
@@ -212,16 +204,9 @@ fun HourlyForecastRow(
             }
         }
 
-        // Expanded detail
-        AnimatedVisibility(
-            visible = selectedIndex >= 0 && selectedIndex < hourlyData.size,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
-        ) {
-            if (selectedIndex >= 0 && selectedIndex < hourlyData.size) {
-                val data = hourlyData[selectedIndex]
-                HourlyDetailCard(data = data, modifier = Modifier.padding(16.dp))
-            }
+        if (selectedIndex >= 0 && selectedIndex < hourlyData.size) {
+            val data = hourlyData[selectedIndex]
+            HourlyDetailCard(data = data, modifier = Modifier.padding(16.dp))
         }
     }
 }
@@ -258,10 +243,7 @@ private fun HourlyItem(
             color = contentColor
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = data.conditionIcon,
-            fontSize = 24.sp
-        )
+        Text(text = data.conditionIcon, fontSize = 24.sp)
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = formatTemperature(data.temperature),
@@ -417,7 +399,6 @@ private fun DailyItem(
                     )
                 }
 
-                // Temperature range
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -446,12 +427,7 @@ private fun DailyItem(
                 )
             }
 
-            // Expanded hourly detail
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
+            if (isExpanded) {
                 DailyDetailContent(data = data)
             }
         }
@@ -468,7 +444,6 @@ private fun DailyDetailContent(data: DailyData) {
         Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Stats Grid
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -493,7 +468,6 @@ private fun DailyDetailContent(data: DailyData) {
             StatChip("🌡️ Ort.", formatTemperature(data.avgTemp))
         }
 
-        // Hourly preview for this day
         if (data.hourlyDetail.isNotEmpty()) {
             Spacer(modifier = Modifier.height(12.dp))
             Text(
@@ -554,7 +528,6 @@ private fun TemperatureBar(
     maxTemp: Double,
     modifier: Modifier = Modifier
 ) {
-    val normalizedMin = ((minTemp + 10).coerceIn(-10.0, 40.0) + 10) / 50.0
     val normalizedMax = ((maxTemp + 10).coerceIn(-10.0, 40.0) + 10) / 50.0
 
     Box(

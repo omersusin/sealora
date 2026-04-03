@@ -1,7 +1,6 @@
 package com.omersusin.sealora.ui.navigation
 
 import androidx.compose.runtime.*
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,7 +31,9 @@ sealed class Screen(val route: String) {
 @Composable
 fun SealoraNavGraph(
     navController: NavHostController,
-    isFirstLaunch: Boolean
+    isFirstLaunch: Boolean,
+    onRequestLocation: () -> Unit = {},
+    hasLocationPermission: Boolean = false
 ) {
     var showOnboarding by remember { mutableStateOf(isFirstLaunch) }
 
@@ -60,7 +61,9 @@ fun SealoraNavGraph(
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
-                }
+                },
+                onRequestLocation = onRequestLocation,
+                hasLocationPermission = hasLocationPermission
             )
         }
 

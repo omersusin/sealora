@@ -1,14 +1,17 @@
 package com.omersusin.sealora.ui.screens.home
 
-import androidx.compose.animation.*
+import android.content.Context
+import android.location.Geocoder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -16,8 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -28,16 +31,24 @@ import com.omersusin.sealora.domain.model.*
 import com.omersusin.sealora.ui.components.*
 import com.omersusin.sealora.ui.theme.*
 import com.omersusin.sealora.ui.util.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onNavigateToDetail: (WeatherData, WeatherReport?) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onRequestLocation: () -> Unit = {},
+    hasLocationPermission: Boolean = false,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val providers by viewModel.activeProviders.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isLoadingLocation by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -60,19 +71,13 @@ fun HomeScreen(
                     }
                 },
                 actions = {
-                    // Chat Button
                     IconButton(onClick = { viewModel.onEvent(HomeEvent.ToggleChatSheet) }) {
-                        Badge(
-                            containerColor = if (uiState.report != null) SealoraPrimary else Color.Transparent
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ChatBubbleOutline,
-                                contentDescription = "AI Sohbet",
-                                tint = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.ChatBubbleOutline,
+                            contentDescription = "AI Sohbet",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-                    // Settings
                     IconButton(onClick = onNavigateToSettings) {
                         Icon(
                             imageVector = Icons.Outlined.Settings,
@@ -92,7 +97,6 @@ fun HomeScreen(
                 .padding(padding),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // Search Bar
             item {
                 CitySearchBar(
                     city = uiState.city,
@@ -102,12 +106,26 @@ fun HomeScreen(
                             viewModel.onEvent(HomeEvent.LoadWeather(uiState.city))
                         }
                     },
-                    isLoading = uiState.isLoading,
+                    isLoading = uiState.isLoading || isLoadingLocation,
+                    onLocationClick = {
+                        if (hasLocationPermission) {
+                            isLoadingLocation = true
+                            scope.launch {
+                                val city = getLastKnownCity(context)
+                                if (city != null) {
+                                    viewModel.onEvent(HomeEvent.UpdateCity(city))
+                                    viewModel.onEvent(HomeEvent.LoadWeather(city))
+                                }
+                                isLoadingLocation = false
+                            }
+                        } else {
+                            onRequestLocation()
+                        }
+                    },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
-            // Error State
             if (uiState.error != null) {
                 item {
                     ErrorCard(
@@ -119,16 +137,13 @@ fun HomeScreen(
                 }
             }
 
-            // Loading State
             if (uiState.isLoading) {
                 item {
                     LoadingWeatherCard()
                 }
             }
 
-            // Weather Data
             if (uiState.weatherDataList.isNotEmpty() && !uiState.isLoading) {
-                // Current Weather Header (using average/first provider)
                 item {
                     val primaryData = uiState.weatherDataList.first()
                     CurrentWeatherHeader(
@@ -138,7 +153,6 @@ fun HomeScreen(
                     )
                 }
 
-                // Report Generation Status
                 if (uiState.isGeneratingReport) {
                     item {
                         Card(
@@ -161,7 +175,7 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
-                                    text = "🤖 AI rapor oluşturuyor...",
+                                    text = "AI rapor oluşturuyor...",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = SealoraPrimary
                                 )
@@ -170,7 +184,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Alerts
                 uiState.report?.alerts?.let { alerts ->
                     if (alerts.isNotEmpty()) {
                         item {
@@ -182,7 +195,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Hourly Forecast
                 val primaryData = uiState.weatherDataList.first()
                 if (primaryData.hourlyForecast.isNotEmpty()) {
                     item {
@@ -195,7 +207,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Daily Forecast
                 if (primaryData.dailyForecast.isNotEmpty()) {
                     item {
                         Spacer(modifier = Modifier.height(16.dp))
@@ -207,7 +218,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Provider Cards
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
@@ -242,33 +252,60 @@ fun HomeScreen(
                 }
             }
 
-            // Empty State
             if (uiState.weatherDataList.isEmpty() && !uiState.isLoading && uiState.error == null) {
                 item {
                     EmptyStateCard(
                         icon = {
-                            Text("🌊", fontSize = 64.sp)
+                            Text("\uD83C\uDF0A", fontSize = 64.sp)
                         },
                         title = "Hava Durumu Ara",
-                        subtitle = "Bir şehir adı girerek hava durumu bilgisini alın"
+                        subtitle = "Bir şehir adı girerek veya konum butonuna basarak hava durumu bilgisini alın"
                     )
                 }
             }
         }
     }
 
-    // Chat Bottom Sheet
     if (uiState.showChatSheet) {
         ChatBottomSheet(
             messages = uiState.chatMessages,
             inputText = uiState.chatInput,
             isLoading = uiState.isChatLoading,
-            onInputChange = { /* handled by viewmodel */ },
+            onInputChange = { },
             onSend = { message ->
                 viewModel.onEvent(HomeEvent.SendChatMessage(message))
             },
             onDismiss = { viewModel.onEvent(HomeEvent.ToggleChatSheet) }
         )
+    }
+}
+
+private suspend fun getLastKnownCity(context: Context): String? {
+    return withContext(Dispatchers.IO) {
+        try {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+            val providers = locationManager.getProviders(true)
+            var bestLocation: android.location.Location? = null
+
+            for (provider in providers) {
+                val location = locationManager.getLastKnownLocation(provider) ?: continue
+                if (bestLocation == null || location.accuracy < bestLocation.accuracy) {
+                    bestLocation = location
+                }
+            }
+
+            if (bestLocation != null) {
+                val geocoder = Geocoder(context, Locale("tr"))
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(bestLocation.latitude, bestLocation.longitude, 1)
+                if (!addresses.isNullOrEmpty()) {
+                    val city = addresses[0].locality ?: addresses[0].subAdminArea
+                    city
+                } else null
+            } else null
+        } catch (e: Exception) {
+            null
+        }
     }
 }
 
@@ -278,6 +315,7 @@ private fun CitySearchBar(
     onCityChange: (String) -> Unit,
     onSearch: () -> Unit,
     isLoading: Boolean,
+    onLocationClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     OutlinedTextField(
@@ -301,7 +339,7 @@ private fun CitySearchBar(
                     Icon(Icons.Default.Close, contentDescription = "Temizle")
                 }
             } else {
-                IconButton(onClick = { /* GPS location */ }) {
+                IconButton(onClick = onLocationClick) {
                     Icon(Icons.Outlined.MyLocation, contentDescription = "Konum")
                 }
             }
@@ -332,9 +370,7 @@ private fun ErrorCard(
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     Icons.Outlined.ErrorOutline,
                     contentDescription = null,
@@ -397,14 +433,13 @@ private fun ChatBottomSheet(
                 .fillMaxWidth()
                 .heightIn(max = 600.dp)
         ) {
-            // Header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("🤖", fontSize = 24.sp)
+                Text("\uD83E\uDD16", fontSize = 24.sp)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Sealora AI",
@@ -419,7 +454,6 @@ private fun ChatBottomSheet(
 
             Divider()
 
-            // Messages
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
@@ -435,7 +469,7 @@ private fun ChatBottomSheet(
                                 .padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("💬", fontSize = 48.sp)
+                            Text("\uD83D\uDCAC", fontSize = 48.sp)
                             Spacer(modifier = Modifier.height(16.dp))
                             Text(
                                 text = "AI ile sohbet et",
@@ -465,7 +499,6 @@ private fun ChatBottomSheet(
                 }
             }
 
-            // Input
             Divider()
             Row(
                 modifier = Modifier
@@ -503,7 +536,7 @@ private fun ChatBottomSheet(
                     containerColor = SealoraPrimary,
                     contentColor = Color.White
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = "Gönder", modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gönder", modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -528,7 +561,7 @@ private fun ChatBubble(message: AiChatMessage) {
                     .background(SealoraPrimary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text("🤖", fontSize = 16.sp)
+                Text("\uD83E\uDD16", fontSize = 16.sp)
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
