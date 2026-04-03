@@ -14,8 +14,8 @@ android {
         applicationId = "sealora.wr"
         minSdk = 26
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
     }
 
     signingConfigs {
@@ -76,19 +76,17 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.8.2")
     implementation("androidx.core:core-splashscreen:1.0.1")
 
-    // Compose BOM
-    val composeBom = platform("androidx.compose:compose-bom:2024.01.00")
+    // Compose BOM - bumped to fix animation-core KeyframesSpec.at() crash
+    val composeBom = platform("androidx.compose:compose-bom:2024.04.00")
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.animation:animation")
+    implementation("androidx.compose.animation:animation-core")
     debugImplementation("androidx.compose.ui:ui-tooling")
-
-    // CRITICAL: Pin animation-core to match Material3 expectations
-    implementation("androidx.compose.animation:animation-core:1.6.0")
-    implementation("androidx.compose.animation:animation:1.6.0")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.6")

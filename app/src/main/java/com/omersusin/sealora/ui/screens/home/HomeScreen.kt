@@ -12,7 +12,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -234,7 +236,7 @@ fun HomeScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "${uiState.weatherDataList.size} Sağlayıcıdan Veri",
+                            text = "${uiState.weatherDataList.size} Saglayicidan Veri",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -259,7 +261,7 @@ fun HomeScreen(
                             Text("\uD83C\uDF0A", fontSize = 64.sp)
                         },
                         title = "Hava Durumu Ara",
-                        subtitle = "Bir şehir adı girerek veya konum butonuna basarak hava durumu bilgisini alın"
+                        subtitle = "Bir sehir adi girerek veya konum butonuna basarak hava durumu bilgisini alin"
                     )
                 }
             }
@@ -269,9 +271,7 @@ fun HomeScreen(
     if (uiState.showChatSheet) {
         ChatBottomSheet(
             messages = uiState.chatMessages,
-            inputText = uiState.chatInput,
             isLoading = uiState.isChatLoading,
-            onInputChange = { },
             onSend = { message ->
                 viewModel.onEvent(HomeEvent.SendChatMessage(message))
             },
@@ -322,7 +322,7 @@ private fun CitySearchBar(
         value = city,
         onValueChange = onCityChange,
         modifier = modifier.fillMaxWidth(),
-        placeholder = { Text("Şehir ara... (ör: İstanbul, Ankara)") },
+        placeholder = { Text("Sehir ara... (or: Istanbul, Ankara)") },
         leadingIcon = {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -414,13 +414,11 @@ private fun ErrorCard(
 @Composable
 private fun ChatBottomSheet(
     messages: List<AiChatMessage>,
-    inputText: String,
     isLoading: Boolean,
-    onInputChange: (String) -> Unit,
     onSend: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var localInput by remember { mutableStateOf(inputText) }
+    var localInput by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -478,7 +476,7 @@ private fun ChatBottomSheet(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Hava durumu hakkında sorular sorabilirsiniz.",
+                                text = "Hava durumu hakkinda sorular sorabilirsiniz.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -510,7 +508,7 @@ private fun ChatBottomSheet(
                     value = localInput,
                     onValueChange = { localInput = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Hava durumu hakkında sor...") },
+                    placeholder = { Text("Hava durumu hakkinda sor...") },
                     shape = RoundedCornerShape(24.dp),
                     singleLine = false,
                     maxLines = 3,
@@ -525,18 +523,19 @@ private fun ChatBottomSheet(
                     )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                FloatingActionButton(
+                Button(
                     onClick = {
                         if (localInput.isNotBlank()) {
                             onSend(localInput)
                             localInput = ""
                         }
                     },
-                    modifier = Modifier.size(48.dp),
-                    containerColor = SealoraPrimary,
-                    contentColor = Color.White
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = SealoraPrimary),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gönder", modifier = Modifier.size(20.dp))
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Gonder", modifier = Modifier.size(20.dp))
                 }
             }
 
