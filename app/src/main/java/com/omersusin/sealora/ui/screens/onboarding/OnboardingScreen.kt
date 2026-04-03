@@ -45,7 +45,7 @@ fun OnboardingScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             LinearProgressIndicator(
-                progress = { (currentStep + 1).toFloat() / steps.size },
+                progress = (currentStep + 1).toFloat() / steps.size,
                 modifier = Modifier.fillMaxWidth().height(4.dp).clip(RoundedCornerShape(2.dp)),
                 color = Color.White,
                 trackColor = Color.White.copy(alpha = 0.3f)
