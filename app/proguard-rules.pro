@@ -21,6 +21,10 @@
 -keep class io.ktor.** { *; }
 -dontwarn io.ktor.**
 
+# SLF4J - Ktor logging dependency
+-dontwarn org.slf4j.**
+-keep class org.slf4j.** { *; }
+
 # Room
 -keep class * extends androidx.room.RoomDatabase
 -keep @androidx.room.Entity class *
@@ -32,3 +36,7 @@
 # Coroutines
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
+
+# OkHttp
+-dontwarn okhttp3.**
+-dontwarn okio.**
